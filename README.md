@@ -1,6 +1,28 @@
-# KEy-Loss Protection (KELP) for Sui
+# KelpMe v0.0.1 → KEy-Loss Protection (KELP) for Sui
 
-This Sui Move module provides a key-loss protection (KELP) mechanism for account owners.  KELP allows users to recover their accounts if they lose their private keys, utilizing a commit-reveal scheme and a network of guardians.
+Losing web3 private keys often results in irrecoverable asset loss. Existing solutions are mainly proactive, requiring complex backups that most users don’t adopt in practice. The KelpMe project extends the KELP (Key-Loss Protection) protocol, originally proposed by Meta Research to offer a fully reactive recovery mechanism without prior setup.
+
+KelpMe allows users to reclaim assets by initiating a three-phase smart contract (Commit → Reveal → Claim or Challenge). We enhance this by introducing optional Guardians and cover traffic techniques to generate decoy claims, making it harder for attackers to exploit the system. Additionally, fee-based penalties for false claims and malicious attacks are imposed, discouraging abuse. Our unique key rotation feature lets users regain control of an account without moving funds, ideal for frequently used addresses and possible due to account abstraction.
+
+Unlike traditional solutions, our approach is entirely reactive, eliminating the need for complex backups while providing robust defense mechanisms like cover traffic. This ensures that even in cases of key loss or transaction errors, users have a secure and streamlined method to recover their assets. This makes our solution a game-changer in asset recovery, significantly improving both security and usability for blockchain users.
+
+This Sui Move module provides a reactive key-loss protection (KELP) mechanism for Sui account owners. Practically we implemented an innovative fraud-proof system for key recovery, utilizing Sui's account abstraction functionality to enforce secure time-locked transactions. It includes deterrents like claim fees and optional guardians to prevent malicious actors from gaming the system. To summarize, KelpMe offers a groundbreaking solution to one of the most critical issues in decentralized finance: secure and reliable asset recovery. 
+
+KelpMe is a collaborative work, inspired by the Bybit/DMCC Dubai Hackathon, and the team consists of students from AUS (American University of Sharjah), industry leaders and the Mysten Labs cryptography team, along with co-authors of the original KELP algorithm.
+
+Links
+-----
+
+- [KELP scientific paper][1]
+- [KelpMe pitch deck][2]
+- [KelpMe website][3]
+- [KelpMe on Twitter / X][3]
+
+[1]: https://eprint.iacr.org/2021/289
+[2]: https://docs.google.com/presentation/d/1UFYTg3bJ7iT8znsAvZ8mJwiYRgNF7T-FluB7O75exeQ
+[3]: https://kelpme.io
+[4]: https://x.com/kelpmerecover
+
 
 ## Overview
 
