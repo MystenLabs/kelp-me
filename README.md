@@ -16,7 +16,7 @@ Links
 - [KELP scientific paper][1]
 - [KelpMe pitch deck][2]
 - [KelpMe website][3]
-- [KelpMe on Twitter / X][3]
+- [KelpMe on Twitter / X][4]
 
 [1]: https://eprint.iacr.org/2021/289
 [2]: https://docs.google.com/presentation/d/1UFYTg3bJ7iT8znsAvZ8mJwiYRgNF7T-FluB7O75exeQ
