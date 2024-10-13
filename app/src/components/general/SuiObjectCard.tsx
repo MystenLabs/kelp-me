@@ -25,7 +25,7 @@ export const SuiObjectCard = ({ objectId }: Props) => {
     data: coinData,
     isLoading: isCoinLoading,
     isError: isCoinError,
-    refetch, // Destructure the refetch function
+    // refetch, // Destructure the refetch function
   } = useGetCoins(objectId);
 
   return (

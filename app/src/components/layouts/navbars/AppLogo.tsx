@@ -24,7 +24,7 @@ export const AppLogo = ({ className = "" }: AppLogoProps) => {
         width={50}
         height={50}
       /> */}
-      <div>KELPme</div>
+      <div>KELPme Recover</div>
     </Link>
   );
 };

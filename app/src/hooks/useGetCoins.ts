@@ -61,12 +61,12 @@ export const useGetCoins = (address: string | undefined) => {
     if (!!address) {
       reFetchData();
 
-      const intervalId = setInterval(() => {
-        reFetchData();
-      }, 5000); // 5000 milliseconds = 5 seconds
+      // const intervalId = setInterval(() => {
+      //   reFetchData();
+      // }, 5000); // 5000 milliseconds = 5 seconds
 
-      // Cleanup interval on component unmount or when address changes
-      return () => clearInterval(intervalId);
+      // // Cleanup interval on component unmount or when address changes
+      // return () => clearInterval(intervalId);
     } else {
       setData([]);
       setIsLoading(false);
