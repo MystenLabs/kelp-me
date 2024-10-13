@@ -87,10 +87,6 @@ Account owners can enable KELP by calling the `create_kelp` function, specifying
 * `accept_object`: Accepts object.
 * `get_object`: Gets an object stored within the KELP resource.
 
-## Error Codes
-
-The module defines several error codes for various failure scenarios, which are documented in the code comments.
-
 ## Security Considerations
 
 * **Guardian Selection:** Careful selection of guardians is crucial for security.
