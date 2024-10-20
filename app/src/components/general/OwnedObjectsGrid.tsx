@@ -16,11 +16,6 @@ export const OwnedObjectsGrid = () => {
   const { user, isLoading: isAuthLoading } = useAuthentication();
   const { data, isLoading, isError } = useGetOwnedKelps();
 
-  const {
-    data: coinData,
-    isLoading: isCoinLoading,
-    isError: isCoinError,
-  } = useGetCoins(address);
   const [kelp, setKelp] = useState("");
 
   // Move the state update logic inside useEffect
@@ -43,7 +38,7 @@ export const OwnedObjectsGrid = () => {
     );
   }
 
-  if (isAuthLoading || isLoading || isCoinLoading) {
+  if (isAuthLoading || isLoading) {
     return <Spinner />;
   }
 
@@ -74,21 +69,8 @@ export const OwnedObjectsGrid = () => {
         My KELP
       </h2>
       <div>
-        <div
-          key={kelp}
-          // className="flex flex-col items-center bg-white p-6 rounded-lg shadow hover:shadow-xl transition-shadow duration-300"
-        >
-          <SuiObjectCard
-            key={kelp}
-            objectId={kelp}
-            // Uncomment and customize the totalBalance if needed
-            // totalBalance={
-            //   coinData.reduce(
-            //     (acc, coin) => acc + parseInt(coin.balance),
-            //     0
-            //   ) / 10 ** 9
-            // }
-          />
+        <div key={kelp}>
+          <SuiObjectCard key={kelp} objectId={kelp} />
           <div className="mt-4 w-full">
             <TransferSUIForm />
           </div>

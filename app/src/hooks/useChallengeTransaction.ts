@@ -3,9 +3,8 @@ import { useCustomWallet } from "@/contexts/CustomWallet";
 import { Transaction } from "@mysten/sui/transactions";
 import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
 import toast from "react-hot-toast";
-import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
 
-export const useClaimTransaction = (kelp: string) => {
+export const useChallengeTransaction = (kelp: string) => {
   const { executeTransactionBlockWithoutSponsorship } = useCustomWallet();
 
   const suiClient = useSuiClient();
@@ -23,18 +22,15 @@ export const useClaimTransaction = (kelp: string) => {
   });
 
   const handleExecute = () => {
-    //
     const packageId = clientConfig.PACKAGE;
     const registry = clientConfig.REGISTRY!;
-    console.log("Claiming Kelp Account...");
+    console.log("Challenging...");
     const transaction = new Transaction();
 
     transaction.moveCall({
-      target: `${packageId}::kelp::claim`,
+      target: `${packageId}::kelp::challenge`,
       arguments: [
-        transaction.object(registry!), // kelp_registry: &mut KelpRegistry
         transaction.object(kelp), // &mut Kelp,
-        transaction.object(SUI_CLOCK_OBJECT_ID), // clock: &Clock
       ],
     });
 
