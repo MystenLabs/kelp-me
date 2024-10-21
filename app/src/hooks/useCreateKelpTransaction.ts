@@ -56,29 +56,6 @@ export const useCreateKelpTransaction = () => {
         },
       });
 
-      // sponsorAndExecuteTransactionBlock({
-      //   tx: transaction,
-      //   network: clientConfig.SUI_NETWORK_NAME,
-      //   includesTransferTx: false,
-      //   allowedAddresses: [address!],
-      //   options: {
-      //     showEffects: true,
-      //   },
-      // });
-
-      // const resp = await sponsorAndExecuteTransactionBlock({
-      //   tx: transaction,
-      //   network: clientConfig.SUI_NETWORK_NAME,
-      //   includesTransferTx: false,
-      //   // allowedAddresses: [
-      //   //   "0x7377de949b910c4f204536c38883d3a1709d7758db2322b0438587a450df8a59",
-      //   // ],
-      //   options: {
-      //     showEffects: true,
-      //     showObjectChanges: true,
-      //   },
-      // });
-
       console.log(resp);
       toast.success("Transaction executed successfully");
 
