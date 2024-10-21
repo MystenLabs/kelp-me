@@ -5,6 +5,7 @@ import { useCustomWallet } from "@/contexts/CustomWallet";
 
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { graphql } from "@mysten/sui/graphql/schemas/2024.4";
+import clientConfig from "@/config/clientConfig";
 
 interface MoveValue {
   __typename: string;
@@ -65,7 +66,7 @@ export const useGetOwnedKelps = () => {
   const registryQuery = graphql(`
     {
       owner(
-        address: "0x73437d2e8cdb9146a974ef7b00dea28e551c9d6eec3363b1459a922af00c5690"
+        address: "${clientConfig.REGISTRY_TABLE}"
       ) {
         dynamicFields {
           nodes {

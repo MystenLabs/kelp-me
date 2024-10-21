@@ -4,7 +4,6 @@ import { useState } from "react";
 
 const CreateKelp = ({ onCreated }: { onCreated: (id: string) => void }) => {
   const { handleExecute } = useCreateKelpTransaction();
-  const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -13,12 +12,19 @@ const CreateKelp = ({ onCreated }: { onCreated: (id: string) => void }) => {
     setError(null);
     try {
       const res = await handleExecute();
-      setResponse(res);
-      const objectId = res?.effects?.created?.[0]?.reference?.objectId;
-      if (objectId) {
-        onCreated(objectId);
+      if (!res) {
+        throw new Error("No response received");
       }
-      console.log("KELP Object ID:", objectId);
+
+      const createdKelp = res.objectChanges?.find(
+        (o) => o.type === "created" && o.objectType.endsWith("kelp::Kelp")
+      ) as { objectId: string } | undefined;
+      console.log(createdKelp);
+      if (createdKelp?.objectId) {
+        onCreated(createdKelp.objectId);
+      }
+
+      console.log("KELP Object ID:", createdKelp);
       console.log("KELP creation response:", res);
     } catch (err) {
       console.error("Error creating KELP:", err);

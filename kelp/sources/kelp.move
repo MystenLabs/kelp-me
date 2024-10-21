@@ -285,6 +285,7 @@ module kelp::kelp {
     }
 
     public fun claim(
+        kelp_registry: &mut KelpRegistry,
         kelp: &mut Kelp,
         clock: &Clock,
         ctx: &mut TxContext
@@ -297,6 +298,21 @@ module kelp::kelp {
         assert!(extracted_dominant_reveal.claimant == ctx.sender(), EWrongClaimant);
         assert!(current_timestamp - extracted_dominant_reveal.reveal_time >= kelp.challenge_window, EClaimTooSoon);
         kelp.owner = extracted_dominant_reveal.claimant;
+
+        // TODO: FIX this
+        if (kelp_registry.registry.contains(kelp.owner)) {
+            let v_set = kelp_registry.registry.borrow_mut(kelp.owner);
+            if (v_set.contains(&kelp.id.uid_to_inner())) {
+                v_set.remove(&kelp.id.uid_to_inner());
+            };
+        };
+
+        if (kelp_registry.registry.contains(ctx.sender())) {
+            let v_set = kelp_registry.registry.borrow_mut(ctx.sender());
+            v_set.insert(kelp.id.uid_to_inner());
+        } else {
+            kelp_registry.registry.add(ctx.sender(), vec_set::singleton(kelp.id.uid_to_inner()));
+        };
 
         // TODO: option set to none
         let DominantReveal{
