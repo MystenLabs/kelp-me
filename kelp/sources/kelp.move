@@ -3,6 +3,7 @@
 
 /// Module: kelp
 /// KEy-Loss Protection (KELP) is a mechanism that allows an account owner to recover their account if they lose their private key.
+#[allow(unused_const)]
 module kelp::kelp {
     // === Imports ===
     use sui::{
@@ -28,8 +29,8 @@ module kelp::kelp {
     const EBadChallenge: u64 = 2;
     /// KELP recovery is not enabled for the account.
     const EKelpNotEnabled: u64 = 3;
-    /// Reveal attempt made too soon. The reveal window has not elapsed.
-    const ERevealTooSoon: u64 = 4;
+    /// Reveal attempt made too late. The reveal window has elapsed.
+    const ERevealTooLate: u64 = 4;
     /// Claim attempt made too soon. The challenge window has not elapsed.
     const EClaimTooSoon: u64 = 5;
     /// A commit with the same hash already exists.
@@ -247,41 +248,43 @@ module kelp::kelp {
         // let commit = kelp_registry.commits.remove(expected_hash);
         let commit = kelp_registry.commits.remove(expected_hash);
         let reveal_time = clock.timestamp_ms();
-        assert!(reveal_time - commit.commit_time <= REVEAL_WINDOW, ERevealTooSoon);
-
-        // // TODO: is there a better way?
-        if (kelp.dominant_reveal.is_none()) {
-            option::fill(&mut kelp.dominant_reveal, DominantReveal {
-                commit_time: commit.commit_time,
-                reveal_time: reveal_time,
-                claimant
-            });
-        } else {
-            let dominant_reveal = option::borrow(&kelp.dominant_reveal);
-            if (commit.commit_time < dominant_reveal.commit_time) {
-                let old_value = option::swap(&mut kelp.dominant_reveal, DominantReveal {
-                    commit_time: commit.commit_time,
-                    reveal_time: reveal_time,
-                    claimant
-                });
-                let DominantReveal{
-                    commit_time: _,
-                    reveal_time: _,
-                    claimant: _
-                } = old_value;
-            };
-        };
+        // assert!(reveal_time - commit.commit_time <= REVEAL_WINDOW, ERevealTooLate);
 
         let Commit{
             commit_hash: _,
             commit_fee: commit_fee,
-            commit_time: _
+            commit_time: commit_time
         } = commit;
         let c_fee = coin::take(&mut kelp_registry.commit_fees, commit_fee, ctx);
 
         // // sweep the commit and reveal fees into the KELP resource
         coin::put(&mut kelp.fees, c_fee);
         coin::put(&mut kelp.fees, reveal_fee);
+
+        if (reveal_time - commit_time <= REVEAL_WINDOW) {
+            // TODO: is there a better way?
+            if (kelp.dominant_reveal.is_none()) {
+                option::fill(&mut kelp.dominant_reveal, DominantReveal {
+                    commit_time,
+                    reveal_time: reveal_time,
+                    claimant
+                });
+            } else {
+                let dominant_reveal = option::borrow(&kelp.dominant_reveal);
+                if (commit_time < dominant_reveal.commit_time) {
+                    let old_value = option::swap(&mut kelp.dominant_reveal, DominantReveal {
+                        commit_time,
+                        reveal_time: reveal_time,
+                        claimant
+                    });
+                    let DominantReveal{
+                        commit_time: _,
+                        reveal_time: _,
+                        claimant: _
+                    } = old_value;
+                };
+            };
+        };
     }
 
     public fun claim(
@@ -297,21 +300,24 @@ module kelp::kelp {
 
         assert!(extracted_dominant_reveal.claimant == ctx.sender(), EWrongClaimant);
         assert!(current_timestamp - extracted_dominant_reveal.reveal_time >= kelp.challenge_window, EClaimTooSoon);
+
+        // Store the original owner BEFORE updating kelp.owner
+        let original_owner = kelp.owner;
+
         kelp.owner = extracted_dominant_reveal.claimant;
 
-        // TODO: FIX this
-        if (kelp_registry.registry.contains(kelp.owner)) {
-            let v_set = kelp_registry.registry.borrow_mut(kelp.owner);
+        if (kelp_registry.registry.contains(original_owner)) {
+            let v_set = kelp_registry.registry.borrow_mut(original_owner);
             if (v_set.contains(&kelp.id.uid_to_inner())) {
                 v_set.remove(&kelp.id.uid_to_inner());
             };
         };
 
-        if (kelp_registry.registry.contains(ctx.sender())) {
-            let v_set = kelp_registry.registry.borrow_mut(ctx.sender());
+        if (kelp_registry.registry.contains(kelp.owner)) {
+            let v_set = kelp_registry.registry.borrow_mut(kelp.owner);
             v_set.insert(kelp.id.uid_to_inner());
         } else {
-            kelp_registry.registry.add(ctx.sender(), vec_set::singleton(kelp.id.uid_to_inner()));
+            kelp_registry.registry.add(kelp.owner, vec_set::singleton(kelp.id.uid_to_inner()));
         };
 
         // TODO: option set to none
@@ -509,4 +515,75 @@ module kelp::kelp {
         df::remove(&mut kelp.id, id)
     }
 
+    // === Test ===
+
+    #[test_only]
+    public fun test_create_kelp_registry(ctx: &mut TxContext): KelpRegistry {
+            KelpRegistry {
+                id: object::new(ctx),
+                version: VERSION,
+                registry: table::new(ctx),
+                commits: table::new<vector<u8>, Commit>(ctx),
+                commit_fees: balance::zero(),
+            }
+    }
+
+    /// Returns the registry `Table` of a KelpRegistry object.
+    ///
+    /// This function is marked as `test_only` and can only be called within tests.
+    #[test_only]
+    public fun test_registry_length(registry: &mut KelpRegistry): u64 {
+        registry.registry.length()
+    }
+
+    #[test_only]
+    public fun test_registry_contains_kelp_address_owner(
+        kelp_registry: &KelpRegistry,
+        owner: address,
+        kelp: &Kelp
+    ): bool {
+        if (kelp_registry.registry.contains(owner)) {
+            let v_set = kelp_registry.registry.borrow(owner);
+            return v_set.contains(&kelp.id.uid_to_inner())
+        };
+        return false
+    }
+
+    #[test_only]
+    public fun test_destroy_kelp(
+        kelp: Kelp
+    ) {
+        let Kelp {
+            id,
+            version: _,
+            owner: _,
+            reveal_fee_amount: _,
+            fees,
+            challenge_window: _,
+            enabled: _,
+            mut dominant_reveal,
+            guardians: _,
+        } = kelp;
+        fees.destroy_for_testing();
+
+        if (dominant_reveal.is_some()) {
+            // TODO: option set to none
+            let extracted_dominant_reveal = option::extract(&mut dominant_reveal);
+            let DominantReveal{
+                commit_time: _,
+                reveal_time: _,
+                claimant: _,
+            } = extracted_dominant_reveal;
+        };
+        dominant_reveal.destroy_none<DominantReveal>();
+
+        id.delete();
+    }
+
+    #[test_only]
+    public fun test_kelp_address(
+        kelp: &Kelp
+    ): address {
+        kelp.id.uid_to_address()
+    }
 }
