@@ -220,7 +220,6 @@ module kelp::kelp {
 
 
         if (reveal_time - commit_time <= REVEAL_WINDOW) {
-            // Simplify dominant reveal update
             if (kelp.dominant_reveal.is_some()) {
                 let dominant_reveal = option::borrow(&kelp.dominant_reveal);
                 if (commit_time < dominant_reveal.commit_time) {
@@ -241,6 +240,7 @@ module kelp::kelp {
                 );
             }
         } else {
+            // TODO: Not sure if we really need it
             abort ERevealTooLate // Explicitly abort if reveal is too late
         }
     }
@@ -307,19 +307,19 @@ module kelp::kelp {
 
     // // === Helper Functions ===
 
-    // /// Bumps the `Kelp` object version if necessary.
-    // public fun bump_kelp_version(kelp: &mut Kelp) {
-    //     if (VERSION > kelp.version) {
-    //         kelp.version = VERSION;
-    //     }
-    // }
+    /// Bumps the `Kelp` object version if necessary.
+    public fun bump_kelp_version(kelp: &mut Kelp) {
+        if (VERSION > kelp.version) {
+            kelp.version = VERSION;
+        }
+    }
 
-    // /// Bumps the `KelpRegistry` version if necessary.
-    // public fun bump_kelp_registry_version(kelp_registry: &mut KelpRegistry) {
-    //     if (VERSION > kelp_registry.version) {
-    //         kelp_registry.version = VERSION;
-    //     }
-    // }
+    /// Bumps the `KelpRegistry` version if necessary.
+    public fun bump_kelp_registry_version(kelp_registry: &mut KelpRegistry) {
+        if (VERSION > kelp_registry.version) {
+            kelp_registry.version = VERSION;
+        }
+    }
 
     /// Checks if the `Kelp` object version is valid.
     public fun is_kelp_version_valid(kelp: &Kelp): bool {
