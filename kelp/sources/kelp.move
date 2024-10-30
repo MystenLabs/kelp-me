@@ -49,7 +49,7 @@ module kelp::kelp {
     /// Sender is not the owner of the KELP resource.
     const ENotTheKelpOwner: u64 = 12;
     /// Account balance for the specified type does not exist.
-    const EAccountBalanceDoesNotExist: u64 = 14;
+    const EAccountBalanceDoesNotExist: u64 = 13;
 
     // === Constants ===
     /// Current version of the Kelp module.
@@ -69,7 +69,6 @@ module kelp::kelp {
 
     /// Key for the Kelp module itself.  Not currently used but good practice.
     public struct KELP has drop {}
-
 
     /// Registry of Kelp objects, mapping owner addresses to their Kelp object IDs.
     public struct KelpRegistry has key {
@@ -107,6 +106,14 @@ module kelp::kelp {
         claimant: address,
     }
 
+    /// A Hot Potato struct that is used to ensure the borrowed value is returned.
+    public struct Promise {
+        /// The ID of the borrowed object. Ensures that there wasn't a value swap.
+        id: ID,
+        /// The ID of the container. Ensures that the borrowed value is returned to
+        /// the correct container.
+        container_id: ID,
+    }
 
     // === Functions ===
 
@@ -157,7 +164,6 @@ module kelp::kelp {
             }
         );
     }
-
 
     /// Commits to a future claim on a KELP account.
     public fun commit(
@@ -245,7 +251,6 @@ module kelp::kelp {
         }
     }
 
-
     /// Claims a KELP account after the challenge window has elapsed.
     public fun claim(
         kelp_registry: &mut KelpRegistry,
@@ -305,7 +310,7 @@ module kelp::kelp {
         coin::take(&mut kelp.fees, amount, ctx)
     }
 
-    // // === Helper Functions ===
+    // === Helper Functions ===
 
     /// Bumps the `Kelp` object version if necessary.
     public fun bump_kelp_version(kelp: &mut Kelp) {
@@ -404,14 +409,42 @@ module kelp::kelp {
     }
 
     /// Retrieves and removes a stored object from the `Kelp` object.
-    public fun get_object<T: key + store>(kelp: &mut Kelp, id: ID, ctx: &mut TxContext): T {
+    public fun get_object<T: key + store>(
+        kelp: &mut Kelp, 
+        id: ID, 
+        ctx: &mut TxContext
+    ): T {
         assert!(is_kelp_version_valid(kelp), EVersionMismatch);
         assert!(kelp.owner == ctx.sender(), ENotTheKelpOwner);
         df::remove(&mut kelp.id, id)
     }
 
+    /// A module that allows borrowing the value from the kelp.
+    public fun borrow_val<T: key + store>(
+        kelp: &mut Kelp, 
+        id: ID, 
+        ctx: &mut TxContext
+    ): (T, Promise) {
+        let value = get_object<T>(kelp, id, ctx);
+        let id = object::id(&value);
+        (value, Promise { id, container_id: object::id(kelp) })
+    }
 
-    // // === Test Functions ===
+    /// Put the taken item back into the container.
+    public fun return_val<T: key + store>(
+        kelp: &mut Kelp,
+        value: T, 
+        promise: Promise
+    ) {
+        let value_id = object::id(&value);
+        let Promise { id, container_id } = promise;
+        assert!(object::id(kelp) == container_id);
+        assert!(value_id == id);
+        
+        df::add(&mut kelp.id, value_id, value);
+    }
+
+    // === Test Functions ===
 
     #[test_only]
     public fun test_create_kelp_registry(ctx: &mut TxContext): KelpRegistry {
