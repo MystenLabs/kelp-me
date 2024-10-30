@@ -310,7 +310,7 @@ module kelp::kelp {
         coin::take(&mut kelp.fees, amount, ctx)
     }
 
-    // === Helper Functions ===
+    // // === Helper Functions ===
 
     /// Bumps the `Kelp` object version if necessary.
     public fun bump_kelp_version(kelp: &mut Kelp) {
