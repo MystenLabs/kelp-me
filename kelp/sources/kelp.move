@@ -110,9 +110,9 @@ module kelp::kelp {
     public struct Promise {
         /// The ID of the borrowed object. Ensures that there wasn't a value swap.
         id: ID,
-        /// The ID of the container. Ensures that the borrowed value is returned to
-        /// the correct container.
-        container_id: ID,
+        /// The ID of the kelp. Ensures that the borrowed value is returned to
+        /// the correct kelp.
+        kelp_id: ID,
     }
 
     // === Functions ===
@@ -427,7 +427,7 @@ module kelp::kelp {
     ): (T, Promise) {
         let value = get_object<T>(kelp, id, ctx);
         let id = object::id(&value);
-        (value, Promise { id, container_id: object::id(kelp) })
+        (value, Promise { id, kelp_id: object::id(kelp) })
     }
 
     /// Put the taken item back into the container.
@@ -437,8 +437,8 @@ module kelp::kelp {
         promise: Promise
     ) {
         let value_id = object::id(&value);
-        let Promise { id, container_id } = promise;
-        assert!(object::id(kelp) == container_id);
+        let Promise { id, kelp_id } = promise;
+        assert!(object::id(kelp) == kelp_id);
         assert!(value_id == id);
         
         df::add(&mut kelp.id, value_id, value);
