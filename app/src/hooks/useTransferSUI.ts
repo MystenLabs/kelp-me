@@ -4,6 +4,7 @@ import { MIST_PER_SUI } from "@mysten/sui/utils";
 import toast from "react-hot-toast";
 import { useCustomWallet } from "@/contexts/CustomWallet";
 import clientConfig from "@/config/clientConfig";
+import { useSuiClientQuery } from "@mysten/dapp-kit";
 
 interface HandleTransferSUIProps {
   amount: number;
@@ -11,9 +12,23 @@ interface HandleTransferSUIProps {
   refresh?: () => void;
 }
 
-export const useTransferSUI = () => {
+export const useTransferSUI = ({ address }: { address: string }) => {
   const { executeTransactionBlockWithoutSponsorship } = useCustomWallet();
   const [isLoading, setIsLoading] = useState(false);
+
+  // TODO: Pagination
+  const { data } = useSuiClientQuery(
+    "getOwnedObjects",
+    {
+      owner: address,
+      filter: { StructType: "0x2::coin::Coin<0x2::sui::SUI>" },
+      options: { showType: true },
+    },
+    {
+      select: ({ data }) =>
+        data.filter(({ data }) => !!data).map(({ data }) => data!.objectId),
+    }
+  );
 
   const handleTransferSUI = async ({
     amount,
@@ -21,29 +36,40 @@ export const useTransferSUI = () => {
     refresh,
   }: HandleTransferSUIProps) => {
     setIsLoading(true);
-    // TODO
+    console.log(data);
 
     console.log("Transferring SUI");
     console.log("Amount:", amount * Number(MIST_PER_SUI));
     console.log("Recipient:", recipient);
+    console.log("Address:", address);
 
     const transaction = new Transaction();
     const packageId = clientConfig.PACKAGE;
     console.log("Package ID:", packageId);
     const moduleName = "kelp";
 
+    if (data !== undefined && data.length > 0) {
+      for (const coin of data) {
+        transaction.moveCall({
+          target: `${packageId}::${moduleName}::accept_payment`,
+          arguments: [transaction.object(address), transaction.object(coin)],
+          typeArguments: ["0x2::sui::SUI"],
+        });
+      }
+    }
+
     let [tokens] = transaction.moveCall({
       target: `${packageId}::${moduleName}::withdraw`,
       arguments: [
-        transaction.object(
-          "0x471f87bed628f2f5be4eeb366956a1571de4a9ada841e5e4ea3ec46d40f02b27"
-        ), // kelp_registry: &mut KelpRegistry
-        transaction.pure.u64(amount * Number(MIST_PER_SUI)), // amount: u64
+        transaction.object(address),
+        transaction.pure.u64(amount * Number(MIST_PER_SUI)),
       ],
       typeArguments: ["0x2::sui::SUI"],
     });
 
     transaction.transferObjects([tokens], recipient);
+
+    // transaction.setGasBudget(1000000);
 
     // this transaction cannot be sponsored by Enoki
     // because it is using the gas coin as a transaction argument

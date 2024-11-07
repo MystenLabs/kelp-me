@@ -272,6 +272,10 @@ module kelp::kelp {
         // Update registry (remove old owner, add new owner)
         if (kelp_registry.registry.contains(original_owner)) {
             kelp_registry.registry.borrow_mut(original_owner).remove(&kelp.id.uid_to_inner());
+            // Clean up the registry if the owner has no more KELP objects
+            if (kelp_registry.registry.borrow(original_owner).is_empty()) {
+                kelp_registry.registry.remove(original_owner);
+            };
         };
         if (kelp_registry.registry.contains(kelp.owner)) {
             kelp_registry.registry.borrow_mut(kelp.owner).insert(kelp.id.uid_to_inner());
@@ -365,10 +369,10 @@ module kelp::kelp {
         let account_balance_type = AccountBalance<T>{};
 
         if (df::exists_(&kelp.id, account_balance_type)) {
-            let balance = df::borrow_mut(&mut kelp.id, account_balance_type);
-            coin::join(balance, coin);
+            let balance: &mut Balance<T> = df::borrow_mut(&mut kelp.id, account_balance_type);
+            balance.join(coin.into_balance());
         } else {
-            df::add(&mut kelp.id, account_balance_type, coin);
+            df::add(&mut kelp.id, account_balance_type, coin.into_balance());
         }
     }
 
@@ -378,19 +382,19 @@ module kelp::kelp {
         assert!(kelp.owner == ctx.sender(), ENotTheKelpOwner);
         let account_balance_type = AccountBalance<T>{};
         assert!(df::exists_(&kelp.id, account_balance_type), EAccountBalanceDoesNotExist);
-        let balance = df::borrow_mut(&mut kelp.id, account_balance_type);
-        assert!(coin::value(balance) >= amount, EAccountBalanceDoesNotExist); // More appropriate error here
-        coin::split(balance, amount, ctx)
+        let balance: &mut Balance<T> = df::borrow_mut(&mut kelp.id, account_balance_type);
+        assert!(balance.value() >= amount, EAccountBalanceDoesNotExist);
+        coin::take(balance, amount, ctx)
     }
 
-    /// Withdraws coins after accepting incoming payments.
-    public fun withdraw_and_accept<T>(kelp: &mut Kelp, amount: u64, mut sents: vector<Receiving<Coin<T>>>, ctx: &mut TxContext): Coin<T> {
-        while (!sents.is_empty()) {
-            accept_payment<T>(kelp, sents.pop_back());
-        };
+    // /// Withdraws coins after accepting incoming payments.
+    // public fun withdraw_and_accept<T>(kelp: &mut Kelp, amount: u64, mut sents: vector<Receiving<Coin<T>>>, ctx: &mut TxContext): Coin<T> {
+    //     while (!sents.is_empty()) {
+    //         accept_payment<T>(kelp, sents.pop_back());
+    //     };
 
-        withdraw<T>(kelp, amount, ctx)
-    }
+    //     withdraw<T>(kelp, amount, ctx)
+    // }
 
     /// Withdraws all coins of a specific type from the `Kelp` object.
     public fun withdraw_all<T>(kelp: &mut Kelp, ctx: &mut TxContext): Coin<T> {

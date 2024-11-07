@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Spinner } from "./Spinner";
 import { useAuthentication } from "@/contexts/Authentication";
 import { USER_ROLES } from "@/constants/USER_ROLES";
-import { useGetCoins } from "@/hooks/useGetCoins";
 import { SuiObjectCard } from "./SuiObjectCard";
 import { TransferSUIForm } from "@/components/forms/TransferSUIForm";
 import { useCustomWallet } from "@/contexts/CustomWallet";
@@ -72,7 +71,8 @@ export const OwnedObjectsGrid = () => {
         <div key={kelp}>
           <SuiObjectCard key={kelp} objectId={kelp} />
           <div className="mt-4 w-full">
-            <TransferSUIForm />
+            {/* {address ? <TransferSUIForm {...{ address }} /> : null} */}
+            <TransferSUIForm {...{ address: kelp }} />
           </div>
         </div>
       </div>
