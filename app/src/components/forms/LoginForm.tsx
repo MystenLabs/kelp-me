@@ -26,11 +26,10 @@ export const LoginForm = () => {
           Welcome to KELP
         </h2>
         <p className="text-gray-600">
-          Creating a worry-free Web3 wallet has never been easier. Log in to
-          start using KELP.
+          KELPme is currently undergoing maintenance. Please check back later.
         </p>
       </div>
-      <div className="flex flex-col space-y-4">
+      {/* <div className="flex flex-col space-y-4">
         <div key={USER_ROLES.ROLE_1} className="flex flex-col space-y-3">
           <Link
             href="#"
@@ -51,15 +50,13 @@ export const LoginForm = () => {
           </Button>
         </div>
       </div>
-      {/* Optional: Create separate ConnectModal components for each user role if needed */}
       <ConnectModal
-        // className="mt-4"
         open={isConnectModalOpen}
         onOpenChange={(open) => {
           if (!open) setIsConnectModalOpen(false);
         }}
         trigger="button"
-      />
+      /> */}
     </div>
   );
 };
