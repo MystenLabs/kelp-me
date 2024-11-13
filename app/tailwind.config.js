@@ -17,6 +17,11 @@ module.exports = {
     },
     extend: {
       colors: {
+        brand: {
+          light: '#6D28D9',
+          DEFAULT: '#5B21B6',
+          dark: '#4C1D95',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -68,6 +73,10 @@ module.exports = {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+      },
+      fontFamily: {
+        sans: ['Roboto', 'sans-serif'],
+        serif: ['Merriweather', 'serif'],
       },
       borderRadius: {
         lg: "var(--radius)",

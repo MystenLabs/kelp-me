@@ -35,16 +35,18 @@ const CreateKelp = ({ onCreated }: { onCreated: (id: string) => void }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r p-6">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <div className="flex flex-col items-center space-y-6">
-          <h2 className="text-2xl font-semibold text-center text-gray-800">
-            Create Your KELP Account
-          </h2>
-          <p className="text-center text-gray-600">
-            Creating a worry-free Web3 wallet has never been easier. Simply
-            create a KELP account and start using it in seconds.
-          </p>
+    <div className="max-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <div className="max-w-md w-full bg-white shadow rounded-2xl overflow-hidden">
+        <div className="p-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-gray-800 mb-3">
+              Create Your KELP Account
+            </h2>
+            <p className="text-gray-600">
+              Creating a worry-free Web3 wallet has never been easier. Log in to
+              start using KELP.
+            </p>
+          </div>
           <Button
             onClick={onCreateKelp}
             disabled={isLoading}
@@ -57,6 +59,11 @@ const CreateKelp = ({ onCreated }: { onCreated: (id: string) => void }) => {
               <strong>Error:</strong> {error}
             </div>
           )}
+        </div>
+        <div className="bg-gray-100 px-6 py-4 text-center">
+          <p className="text-sm text-gray-500">
+            © {new Date().getFullYear()} KELP. All rights reserved.
+          </p>
         </div>
       </div>
     </div>
