@@ -17,7 +17,7 @@ export const useTransferSUI = ({ address }: { address: string }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // TODO: Pagination
-  const { data } = useSuiClientQuery(
+  const { data: ownedObjectIds, refetch } = useSuiClientQuery(
     "getOwnedObjects",
     {
       owner: address,
@@ -27,6 +27,7 @@ export const useTransferSUI = ({ address }: { address: string }) => {
     {
       select: ({ data }) =>
         data.filter(({ data }) => !!data).map(({ data }) => data!.objectId),
+      enabled: false,
     }
   );
 
@@ -36,65 +37,75 @@ export const useTransferSUI = ({ address }: { address: string }) => {
     refresh,
   }: HandleTransferSUIProps) => {
     setIsLoading(true);
-    console.log(data);
 
-    console.log("Transferring SUI");
-    console.log("Amount:", amount * Number(MIST_PER_SUI));
-    console.log("Recipient:", recipient);
-    console.log("Address:", address);
+    try {
+      let currentOwnedObjectIds = ownedObjectIds;
 
-    const transaction = new Transaction();
-    const packageId = clientConfig.PACKAGE;
-    console.log("Package ID:", packageId);
-    const moduleName = "kelp";
+      // If ownedObjectIds is undefined, refetch and get the latest data
+      if (currentOwnedObjectIds === undefined) {
+        const response = await refetch();
+        currentOwnedObjectIds = response.data;
 
-    if (data !== undefined && data.length > 0) {
-      for (const coin of data) {
-        transaction.moveCall({
-          target: `${packageId}::${moduleName}::accept_payment`,
-          arguments: [transaction.object(address), transaction.object(coin)],
+        if (!currentOwnedObjectIds) {
+          throw new Error("Failed to fetch owned objects.");
+        }
+      }
+
+      console.log("Transferring SUI");
+      console.log("Amount:", amount * Number(MIST_PER_SUI));
+      console.log("Recipient:", recipient);
+      console.log("Address:", address);
+      console.log("Data:", currentOwnedObjectIds);
+
+      if (currentOwnedObjectIds && currentOwnedObjectIds.length > 0) {
+        const transaction = new Transaction();
+        const packageId = clientConfig.PACKAGE;
+        console.log("Package ID:", packageId);
+        const moduleName = "kelp";
+
+        for (const coin of currentOwnedObjectIds) {
+          transaction.moveCall({
+            target: `${packageId}::${moduleName}::accept_payment`,
+            arguments: [transaction.object(address), transaction.object(coin)],
+            typeArguments: ["0x2::sui::SUI"],
+          });
+        }
+
+        let [tokens] = transaction.moveCall({
+          target: `${packageId}::${moduleName}::withdraw`,
+          arguments: [
+            transaction.object(address),
+            transaction.pure.u64(amount * Number(MIST_PER_SUI)),
+          ],
           typeArguments: ["0x2::sui::SUI"],
         });
-      }
-    }
 
-    let [tokens] = transaction.moveCall({
-      target: `${packageId}::${moduleName}::withdraw`,
-      arguments: [
-        transaction.object(address),
-        transaction.pure.u64(amount * Number(MIST_PER_SUI)),
-      ],
-      typeArguments: ["0x2::sui::SUI"],
-    });
+        transaction.transferObjects([tokens], recipient);
 
-    transaction.transferObjects([tokens], recipient);
+        const resp = await executeTransactionBlockWithoutSponsorship({
+          tx: transaction,
+          options: {
+            showEffects: true,
+            showObjectChanges: true,
+          },
+        });
 
-    // transaction.setGasBudget(1000000);
-
-    // this transaction cannot be sponsored by Enoki
-    // because it is using the gas coin as a transaction argument
-    // so we are not sponsoring it with Enoki, the user pays for the gas
-    executeTransactionBlockWithoutSponsorship({
-      tx: transaction,
-      options: {
-        showEffects: true,
-        showObjectChanges: true,
-      },
-    })
-      .then((resp) => {
         console.log(resp);
         if (resp?.effects?.status.status !== "success") {
           throw new Error("Transaction failed");
         }
-        setIsLoading(false);
+
         toast.success("SUI transferred successfully!");
-        !!refresh && refresh();
-      })
-      .catch((err) => {
-        console.log(err);
-        toast.error("Transaction failed");
-        setIsLoading(false);
-      });
+        refresh && refresh();
+      } else {
+        throw new Error("No owned objects found.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Transaction failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return {
