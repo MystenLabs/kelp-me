@@ -11,8 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormField } from "../ui/form";
 import { TextField } from "./TextField";
 
-export const TransferSUIForm = () => {
-  const { isLoading, handleTransferSUI } = useTransferSUI();
+export const TransferSUIForm = ({ address }: { address: string }) => {
+  const { isLoading, handleTransferSUI } = useTransferSUI({ address });
 
   const transferForm = useForm<z.infer<typeof TransferSUIFormSchema>>({
     resolver: zodResolver(TransferSUIFormSchema as any),

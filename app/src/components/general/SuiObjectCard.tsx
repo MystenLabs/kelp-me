@@ -6,7 +6,7 @@ import { getSuiExplorerLink } from "@/helpers/getSuiExplorerLink";
 import { LoadingButton } from "./LoadingButton";
 import { PaperPlaneIcon, CopyIcon } from "@radix-ui/react-icons";
 import toast from "react-hot-toast";
-import Balance from "./Balance";
+import { Balance } from "./Balance";
 import { useChallengeTransaction } from "@/hooks/useChallengeTransaction";
 
 interface Props {

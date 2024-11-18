@@ -4,12 +4,19 @@ import React, { useState, useEffect } from "react";
 import { Spinner } from "./Spinner";
 import { useAuthentication } from "@/contexts/Authentication";
 import { USER_ROLES } from "@/constants/USER_ROLES";
-import { useGetCoins } from "@/hooks/useGetCoins";
 import { SuiObjectCard } from "./SuiObjectCard";
 import { TransferSUIForm } from "@/components/forms/TransferSUIForm";
 import { useCustomWallet } from "@/contexts/CustomWallet";
 import CreateKelp from "./CreateKelp";
 import { useGetOwnedKelps } from "@/hooks/useGetOwnedKelps";
+import {
+  getFaucetHost,
+  getFaucetRequestStatus,
+  requestSuiFromFaucetV1,
+} from "@mysten/sui/faucet";
+import { SUI_TYPE_ARG } from "@mysten/sui/utils";
+import { useSuiClientQuery } from "@mysten/dapp-kit";
+import BigNumber from "bignumber.js";
 
 export const OwnedObjectsGrid = () => {
   const { address } = useCustomWallet();
@@ -30,6 +37,43 @@ export const OwnedObjectsGrid = () => {
     }
   }, [data, address, kelp]);
 
+  // **Moved `useSuiClientQuery` to the top level**
+  const {
+    data: balance,
+    isLoading: isBalanceLoading,
+    isError: isBalanceError,
+  } = useSuiClientQuery("getBalance", {
+    owner: address!,
+    coinType: SUI_TYPE_ARG,
+  });
+
+  useEffect(() => {
+    const fetchFaucet = async () => {
+      try {
+        const { error, task: taskId } = await requestSuiFromFaucetV1({
+          recipient: address!,
+          host: getFaucetHost("testnet"),
+        });
+        if (error) {
+          console.error("Faucet request failed:", error);
+        } else {
+          console.log("Faucet request task ID:", taskId);
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+      }
+    };
+
+    if ((!data || !data.has(address!)) && kelp === "" && balance) {
+      const totalBalance = new BigNumber(balance.totalBalance).shiftedBy(-9);
+      console.log(`Total balance: ${totalBalance}`);
+      if (totalBalance < new BigNumber(1)) {
+        console.log(`Total balance less than 1: fetching from faucet`);
+        fetchFaucet();
+      }
+    }
+  }, [data, address, kelp, balance]);
+
   if (user?.role === USER_ROLES.ROLE_4 && !isAuthLoading) {
     return (
       <div className="text-center">
@@ -38,24 +82,20 @@ export const OwnedObjectsGrid = () => {
     );
   }
 
-  if (isAuthLoading || isLoading) {
+  if (isAuthLoading || isLoading || isBalanceLoading) {
     return <Spinner />;
   }
 
-  if (isError) {
+  if (isError || isBalanceError) {
     return <h3>Error</h3>;
   }
 
-  if (!data || (!data.has(address!) && kelp === "")) {
+  if (!data || (!data.has(address ?? "") && kelp === "")) {
     return (
       <CreateKelp
-        key="CreateKelpForm" // Key doesn't need curly braces here
+        key="CreateKelpForm"
         onCreated={(id) => {
-          console.log(`Kelp created with ID: ${id}`); // Fix interpolation
-          // Consider using react-router's useNavigate instead of window.location.hash
-          // import { useNavigate } from 'react-router-dom';
-          // const navigate = useNavigate();
-          // navigate(`#${id}`);
+          console.log(`Kelp created with ID: ${id}`);
           window.location.hash = id;
           setKelp(id);
         }}
@@ -72,7 +112,7 @@ export const OwnedObjectsGrid = () => {
         <div key={kelp}>
           <SuiObjectCard key={kelp} objectId={kelp} />
           <div className="mt-4 w-full">
-            <TransferSUIForm />
+            <TransferSUIForm {...{ address: kelp }} />
           </div>
         </div>
       </div>
