@@ -6,7 +6,7 @@ import { OwnedObjectsGrid } from "@/components/general/OwnedObjectsGrid";
 import Ribbon from "@/components/ui/Ribbon";
 
 export const metadata: Metadata = {
-  title: "PoC Template for Admins",
+  title: "KELPme.io",
 };
 
 const AdminHomePage = () => {
