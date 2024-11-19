@@ -1,6 +1,6 @@
 import React from "react";
 
-const ribbonStyle = {
+const ribbonStyle: React.CSSProperties = {
   // position: 'fixed',
   top: 0,
   left: 0,
@@ -15,7 +15,7 @@ const ribbonStyle = {
   boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
 };
 
-const Ribbon = () => {
+const Ribbon: React.FC = () => {
   return (
     <div style={ribbonStyle} className="rounded-2xl">
       We are constantly adding new features and improvements. Stay tuned!
@@ -41,4 +41,4 @@ const Ribbon = () => {
 }
 */
 
-export default Ribbon; // Or use it within a larger component as in the styled-components example
+export default Ribbon;

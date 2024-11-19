@@ -4,7 +4,7 @@ import { LoginForm } from "@/components/forms/LoginForm";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "PoC Template",
+  title: "KELPme.io",
   description: "A NextJS app to bootstrap PoCs faster",
 };
 

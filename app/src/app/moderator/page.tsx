@@ -5,7 +5,7 @@ import React from "react";
 import { OwnedObjectsGrid } from "@/components/general/OwnedObjectsGrid";
 
 export const metadata: Metadata = {
-  title: "PoC Template for Moderators",
+  title: "KELPme.io",
 };
 
 const ModeratorHomePage = () => {
