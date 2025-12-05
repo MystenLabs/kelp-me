@@ -11,7 +11,7 @@ const path = require("path");
 const nextConfig = {
   reactStrictMode: true,
   // Limit Next.js workspace root detection to this project to avoid reading parent lockfiles/configs
-  outputFileTracingRoot: path.join(__dirname, ".."),
+  outputFileTracingRoot: __dirname,
   eslint: {
     // Avoid failing builds due to ESLint trying to read configs outside the project root
     ignoreDuringBuilds: true,
