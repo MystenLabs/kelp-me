@@ -10,7 +10,7 @@ import { z } from "zod";
  */
 
 const serverConfigSchema = z.object({
-  ENOKI_SECRET_KEY: z.string(),
+  ENOKI_SECRET_KEY: z.string().optional(),
 });
 
 const serverConfig = serverConfigSchema.parse({
