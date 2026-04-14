@@ -75,9 +75,10 @@ kelp/                   Sui Move smart contract
   sources/kelp.move     Core module
   tests/kelp_tests.move Comprehensive test suite (36 tests)
   Move.toml             Package manifest
-app/                    Next.js 15 frontend (App Router)
-  src/hooks/            React hooks for each contract operation
-  src/contexts/         Wallet and auth providers
+index.html             Vite HTML entrypoint
+vite.config.mts        Vite configuration
+src/                    React frontend source
+  main.tsx             Frontend bootstrap entrypoint
 publish/                Deployment script
   publish.sh            Deploy to localnet/devnet/testnet/mainnet
 ```
