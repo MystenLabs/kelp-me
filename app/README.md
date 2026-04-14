@@ -16,11 +16,13 @@ Client dApp using the following tools:
 
 ```
 src/
-├── components/ui/     # Reusable UI components (Card)
+├── components/
+│   └── ui/            # Reusable UI components (Card)
 ├── lib/utils.ts       # Utility functions (cn for classnames)
 ├── App.tsx            # Main application component
-├── WalletStatus.tsx   # Wallet connection status display
-├── OwnedObjects.tsx   # Display objects owned by connected wallet
+├── Dashboard.tsx      # Main dashboard view
+├── RecoveryFlow.tsx   # Account recovery flow
+├── CreateKelp.tsx     # Kelp creation flow
 ├── dApp-kit.ts        # dApp Kit configuration
 └── index.css          # Tailwind CSS with theme variables
 ```
