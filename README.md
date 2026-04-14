@@ -162,11 +162,11 @@ Configure environment variables in `app/.env` (client-side, tracked) and `app/.e
 
 Each contract operation has a corresponding React hook in `app/src/hooks/`:
 
-- `useCreateKelpTransaction` -- Creates a Kelp for the connected wallet
-- `useCommitTransaction` -- Computes the blake2b hash client-side and submits a commit
-- `useRevealTransaction` -- Reveals recovery data (guardian action)
-- `useClaimTransaction` -- Claims after challenge window
-- `useChallengeTransaction` -- Owner challenges a claim
+- `useCreateKelp` -- Creates a Kelp for the connected wallet
+- `useCommit` -- Computes the blake2b hash client-side and submits a commit
+- `useReveal` -- Reveals recovery data (guardian action)
+- `useClaim` -- Claims after challenge window
+- `useChallenge` -- Owner challenges a claim
 
 ## Security Considerations
 
