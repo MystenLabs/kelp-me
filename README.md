@@ -75,7 +75,7 @@ kelp/                   Sui Move smart contract
   sources/kelp.move     Core module
   tests/kelp_tests.move Comprehensive test suite (36 tests)
   Move.toml             Package manifest
-app/                    Vite + React 19 SPA
+dapp/                   Vite + React 19 SPA
   src/hooks/            React hooks for each contract operation
   src/components/       UI components (Dashboard, RecoveryFlow, etc.)
   src/lib/              Shared helpers (tx utils, explorer URLs)
@@ -121,7 +121,7 @@ Requires `sui`, `jq`, and `curl`. Outputs object IDs (`PACKAGE_ID`, `REGISTRY_ID
 ### Frontend
 
 ```bash
-cd app
+cd dapp
 
 pnpm install
 pnpm run dev        # Start dev server (Vite)
@@ -129,7 +129,7 @@ pnpm run build      # Type-check + production build
 pnpm run preview    # Preview production build
 ```
 
-Configure contract addresses in `app/.env` (tracked, `VITE_` prefix):
+Configure contract addresses in `dapp/.env` (tracked, `VITE_` prefix):
 
 - `VITE_PACKAGE_ID` -- Deployed KELP package object ID
 - `VITE_REGISTRY_ID` -- KelpRegistry shared object ID
@@ -165,7 +165,7 @@ Configure contract addresses in `app/.env` (tracked, `VITE_` prefix):
 
 ### Frontend Hooks
 
-Each contract operation has a corresponding React hook in `app/src/hooks/`:
+Each contract operation has a corresponding React hook in `dapp/src/hooks/`:
 
 - `useCreateKelp` -- Creates a Kelp for the connected wallet
 - `useCommit` -- Computes the blake2b hash client-side and submits a commit
