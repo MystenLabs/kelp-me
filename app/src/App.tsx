@@ -1,14 +1,32 @@
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { ConnectButton } from "@mysten/dapp-kit-react/ui";
-import { LayoutDashboard, Plus, RefreshCw, ShieldAlert } from "lucide-react";
+import {
+  Download,
+  Landmark,
+  LayoutDashboard,
+  Plus,
+  RefreshCw,
+  Send,
+  ShieldAlert,
+} from "lucide-react";
 import { useState } from "react";
 import { Toaster } from "sonner";
 import { ChallengeForm } from "./components/ChallengeForm";
+import { ClaimTokensForm } from "./components/ClaimTokensForm";
 import { CreateKelp } from "./components/CreateKelp";
 import { Dashboard } from "./components/Dashboard";
 import { RecoveryFlow } from "./components/RecoveryFlow";
+import { StakingPlaceholder } from "./components/StakingPlaceholder";
+import { TransferForm } from "./components/TransferForm";
 
-type Tab = "dashboard" | "setup" | "recovery" | "challenge";
+type Tab =
+  | "dashboard"
+  | "setup"
+  | "recovery"
+  | "challenge"
+  | "transfer"
+  | "claim"
+  | "staking";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -26,6 +44,21 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     id: "challenge",
     label: "Challenge",
     icon: <ShieldAlert className="w-4 h-4" />,
+  },
+  {
+    id: "transfer",
+    label: "Transfer",
+    icon: <Send className="w-4 h-4" />,
+  },
+  {
+    id: "claim",
+    label: "Claim",
+    icon: <Download className="w-4 h-4" />,
+  },
+  {
+    id: "staking",
+    label: "Staking",
+    icon: <Landmark className="w-4 h-4" />,
   },
 ];
 
@@ -93,6 +126,13 @@ function App() {
         {activeTab === "challenge" && account && (
           <ChallengeForm initialKelpId={selectedKelpId} />
         )}
+        {activeTab === "transfer" && account && (
+          <TransferForm initialKelpId={selectedKelpId} />
+        )}
+        {activeTab === "claim" && account && (
+          <ClaimTokensForm initialKelpId={selectedKelpId} />
+        )}
+        {activeTab === "staking" && account && <StakingPlaceholder />}
       </main>
     </div>
   );
