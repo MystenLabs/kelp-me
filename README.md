@@ -75,10 +75,12 @@ kelp/                   Sui Move smart contract
   sources/kelp.move     Core module
   tests/kelp_tests.move Comprehensive test suite (36 tests)
   Move.toml             Package manifest
-index.html             Vite HTML entrypoint
-vite.config.mts        Vite configuration
-src/                    React frontend source
-  main.tsx             Frontend bootstrap entrypoint
+app/                    Vite + React 19 SPA
+  src/hooks/            React hooks for each contract operation
+  src/components/       UI components (Dashboard, RecoveryFlow, etc.)
+  src/lib/              Shared helpers (tx utils, explorer URLs)
+  src/config.ts         Contract addresses and constants
+  src/dApp-kit.ts       Sui network and wallet configuration
 publish/                Deployment script
   publish.sh            Deploy to localnet/devnet/testnet/mainnet
 ```
@@ -122,12 +124,15 @@ Requires `sui`, `jq`, and `curl`. Outputs object IDs (`PACKAGE_ID`, `REGISTRY_ID
 cd app
 
 pnpm install
-pnpm run dev        # Start dev server at localhost:3000
-pnpm run build      # Production build
-pnpm run lint       # Lint
+pnpm run dev        # Start dev server (Vite)
+pnpm run build      # Type-check + production build
+pnpm run preview    # Preview production build
 ```
 
-Configure environment variables in `app/.env` (client-side, tracked) and `app/.env.development.local` (server-side secrets, not tracked). See `app/src/config/clientConfig.ts` and `app/src/config/serverConfig.ts` for the full list.
+Configure contract addresses in `app/.env` (tracked, `VITE_` prefix):
+
+- `VITE_PACKAGE_ID` -- Deployed KELP package object ID
+- `VITE_REGISTRY_ID` -- KelpRegistry shared object ID
 
 ## Architecture
 
@@ -167,6 +172,7 @@ Each contract operation has a corresponding React hook in `app/src/hooks/`:
 - `useReveal` -- Reveals recovery data (guardian action)
 - `useClaim` -- Claims after challenge window
 - `useChallenge` -- Owner challenges a claim
+- `useSignAndExecute` -- Shared hook wrapping `dAppKit.signAndExecuteTransaction`
 
 ## Security Considerations
 

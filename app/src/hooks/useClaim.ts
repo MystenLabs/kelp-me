@@ -1,6 +1,7 @@
 import { Transaction } from "@mysten/sui/transactions";
+import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
 import { useCallback } from "react";
-import { PACKAGE_ID, REGISTRY_ID, SUI_CLOCK } from "../config";
+import { PACKAGE_ID, REGISTRY_ID } from "../config";
 import { useSignAndExecute } from "./useSignAndExecute";
 
 export function useClaim() {
@@ -15,7 +16,7 @@ export function useClaim() {
         arguments: [
           tx.object(REGISTRY_ID),
           tx.object(kelpId),
-          tx.object(SUI_CLOCK),
+          tx.object(SUI_CLOCK_OBJECT_ID),
         ],
       });
 

@@ -1,6 +1,11 @@
 export const PACKAGE_ID = import.meta.env.VITE_PACKAGE_ID as string;
 export const REGISTRY_ID = import.meta.env.VITE_REGISTRY_ID as string;
-export const SUI_CLOCK = "0x6";
+
+if (!PACKAGE_ID || !REGISTRY_ID) {
+  throw new Error(
+    "Missing VITE_PACKAGE_ID or VITE_REGISTRY_ID – check your .env file",
+  );
+}
 
 // 1 SUI in MIST
 export const COMMIT_FEE = 1_000_000_000;

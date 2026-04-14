@@ -1,8 +1,9 @@
 import { bcs } from "@mysten/sui/bcs";
 import { Transaction } from "@mysten/sui/transactions";
+import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
 import { blake2b } from "@noble/hashes/blake2.js";
 import { useCallback } from "react";
-import { COMMIT_FEE, PACKAGE_ID, REGISTRY_ID, SUI_CLOCK } from "../config";
+import { COMMIT_FEE, PACKAGE_ID, REGISTRY_ID } from "../config";
 import { useSignAndExecute } from "./useSignAndExecute";
 
 /**
@@ -43,7 +44,7 @@ export function useCommit() {
           tx.object(REGISTRY_ID),
           commitHash,
           coin,
-          tx.object(SUI_CLOCK),
+          tx.object(SUI_CLOCK_OBJECT_ID),
         ],
       });
 

@@ -1,7 +1,8 @@
 import { bcs } from "@mysten/sui/bcs";
 import { Transaction } from "@mysten/sui/transactions";
+import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
 import { useCallback } from "react";
-import { PACKAGE_ID, REGISTRY_ID, REVEAL_FEE, SUI_CLOCK } from "../config";
+import { PACKAGE_ID, REGISTRY_ID, REVEAL_FEE } from "../config";
 import { useSignAndExecute } from "./useSignAndExecute";
 
 export function useReveal() {
@@ -25,7 +26,7 @@ export function useReveal() {
           tx.pure.address(claimant),
           nonceBcs,
           coin,
-          tx.object(SUI_CLOCK),
+          tx.object(SUI_CLOCK_OBJECT_ID),
         ],
       });
 

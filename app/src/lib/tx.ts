@@ -21,7 +21,8 @@ export function toastTxSuccess(message: string, digest?: string) {
       description: `Tx: ${truncate(digest)}`,
       action: {
         label: "View",
-        onClick: () => window.open(explorerTxUrl(digest), "_blank"),
+        onClick: () =>
+          window.open(explorerTxUrl(digest), "_blank", "noopener,noreferrer"),
       },
       duration: 8000,
     });

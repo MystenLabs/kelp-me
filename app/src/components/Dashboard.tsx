@@ -89,23 +89,23 @@ export function Dashboard({
     queryKey: ["kelps", kelpIds],
     queryFn: async () => {
       if (kelpIds.length === 0) return [];
-      const results: KelpData[] = [];
-      for (const id of kelpIds) {
-        try {
+      const settled = await Promise.allSettled(
+        kelpIds.map(async (id) => {
           const resp = await client.getObject({
             objectId: id,
             include: { json: true },
           });
           const json = resp.object?.json;
-          if (json) {
-            const parsed = parseKelpContent(id, json);
-            if (parsed) results.push(parsed);
-          }
-        } catch {
-          // Object might not exist anymore
-        }
-      }
-      return results;
+          return json ? parseKelpContent(id, json) : null;
+        }),
+      );
+      return settled
+        .filter(
+          (r): r is PromiseFulfilledResult<KelpData | null> =>
+            r.status === "fulfilled",
+        )
+        .map((r) => r.value)
+        .filter((v): v is KelpData => v !== null);
     },
     enabled: kelpIds.length > 0,
   });
