@@ -174,16 +174,27 @@ export function RecoveryFlow({ initialKelpId }: { initialKelpId?: string }) {
 
               <Field
                 label="Claimant Address"
-                description="Address that will become the new owner. Defaults to your connected wallet."
+                description="Address that will become the new owner."
               >
-                <input
-                  type="text"
-                  placeholder="0x..."
-                  value={claimant}
-                  onChange={(e) => setClaimant(e.target.value)}
-                  required
-                  className="input"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="0x..."
+                    value={claimant}
+                    onChange={(e) => setClaimant(e.target.value)}
+                    required
+                    className="input flex-1"
+                  />
+                  {account?.address && account.address !== claimant && (
+                    <button
+                      type="button"
+                      onClick={() => setClaimant(account.address)}
+                      className="btn-secondary text-xs whitespace-nowrap"
+                    >
+                      Use Wallet
+                    </button>
+                  )}
+                </div>
               </Field>
 
               <Field

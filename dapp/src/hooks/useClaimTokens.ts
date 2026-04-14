@@ -7,11 +7,7 @@ export function useClaimTokens() {
   const { signAndExecute, loading } = useSignAndExecute();
 
   const claimTokens = useCallback(
-    async (
-      kelpId: string,
-      recipient: string,
-      pendingCoinIds: string[],
-    ) => {
+    async (kelpId: string, recipient: string, pendingCoinIds: string[]) => {
       const tx = new Transaction();
 
       // Accept all pending coins into KELP's internal balance

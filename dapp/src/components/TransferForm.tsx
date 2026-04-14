@@ -51,10 +51,8 @@ export function TransferForm({ initialKelpId }: { initialKelpId?: string }) {
   });
 
   const pendingTotal =
-    pendingCoins?.reduce(
-      (sum: number, c: PendingCoin) => sum + c.balance,
-      0,
-    ) ?? 0;
+    pendingCoins?.reduce((sum: number, c: PendingCoin) => sum + c.balance, 0) ??
+    0;
   const pendingTotalSui = (pendingTotal / 1_000_000_000).toFixed(4);
 
   const handleSubmit = async (e: React.FormEvent) => {

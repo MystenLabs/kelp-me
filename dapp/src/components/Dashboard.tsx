@@ -181,40 +181,6 @@ export function Dashboard({
 
   return (
     <div className="space-y-6">
-      {/* Wallet Info */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>Wallet</CardTitle>
-            <button
-              onClick={() => refetchBalance()}
-              className={`icon-btn ${isRefetchingBalance ? "animate-spin" : ""}`}
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3 mb-3">
-            <code className="text-sm bg-secondary px-3 py-1.5 rounded-md">
-              {truncate(account.address)}
-            </code>
-            <button
-              onClick={() => copyToClipboard(account.address)}
-              className="icon-btn"
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Balance:{" "}
-            <span className="text-foreground font-medium">
-              {balanceSui} SUI
-            </span>
-          </p>
-        </CardContent>
-      </Card>
-
       {/* My KELPs */}
       <Card>
         <CardHeader className="pb-3">
@@ -225,15 +191,19 @@ export function Dashboard({
                 Track and manage your KELP protection objects
               </CardDescription>
             </div>
-            <div className="flex items-center gap-1">
-              {kelpIds.length > 0 && (
-                <button
-                  onClick={() => refetchKelps()}
-                  className={`icon-btn ${isRefetchingKelps ? "animate-spin" : ""}`}
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {balanceSui} SUI
+              </span>
+              <button
+                onClick={() => {
+                  refetchBalance();
+                  refetchKelps();
+                }}
+                className={`icon-btn ${isRefetchingBalance || isRefetchingKelps ? "animate-spin" : ""}`}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </CardHeader>
@@ -367,8 +337,10 @@ function KelpCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
-            className={`w-2 h-2 rounded-full ${kelp.enabled ? "bg-green-500" : "bg-red-500"}`}
-          />
+            className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${kelp.enabled ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}
+          >
+            {kelp.enabled ? "Active" : "Disabled"}
+          </span>
           <code
             className="text-xs cursor-pointer hover:text-sui transition-colors"
             onClick={onSelect}

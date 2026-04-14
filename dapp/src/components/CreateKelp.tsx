@@ -141,8 +141,14 @@ export function CreateKelp({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium">Enabled</label>
+          <div className="flex items-center justify-between gap-4 p-3 bg-secondary/50 rounded-lg">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Recovery Enabled</label>
+              <p className="text-xs text-muted-foreground">
+                When enabled, guardians can initiate account recovery. Disable
+                to temporarily block all recovery attempts.
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => setEnabled(!enabled)}

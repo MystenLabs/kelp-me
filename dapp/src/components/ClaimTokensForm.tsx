@@ -17,11 +17,7 @@ interface PendingCoin {
   balance: number;
 }
 
-export function ClaimTokensForm({
-  initialKelpId,
-}: {
-  initialKelpId?: string;
-}) {
+export function ClaimTokensForm({ initialKelpId }: { initialKelpId?: string }) {
   const account = useCurrentAccount();
   const client = useCurrentClient();
   const { claimTokens, loading } = useClaimTokens();
@@ -53,10 +49,8 @@ export function ClaimTokensForm({
   });
 
   const pendingTotal =
-    pendingCoins?.reduce(
-      (sum: number, c: PendingCoin) => sum + c.balance,
-      0,
-    ) ?? 0;
+    pendingCoins?.reduce((sum: number, c: PendingCoin) => sum + c.balance, 0) ??
+    0;
   const pendingTotalSui = (pendingTotal / 1_000_000_000).toFixed(4);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,7 +128,8 @@ export function ClaimTokensForm({
           <div className="bg-secondary rounded-lg p-3">
             <p className="text-xs text-muted-foreground">
               This will accept all pending coins and withdraw the full SUI token
-              balance to your connected wallet. Only the KELP owner can withdraw.
+              balance to your connected wallet. Only the KELP owner can
+              withdraw.
             </p>
           </div>
 
