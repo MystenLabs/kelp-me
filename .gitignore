@@ -31,3 +31,4 @@ setup/*.env
 .vercel
 .coverage_map.mvcov
 .trace
+dapp/.env
