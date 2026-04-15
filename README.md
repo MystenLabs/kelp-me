@@ -1,96 +1,204 @@
-# KelpMe v0.0.1 → KEy-Loss Protection (KELP) for Sui
+# KelpMe -- KEy-Loss Protection (KELP) for Sui
 
-Losing web3 private keys often results in irrecoverable asset loss. Existing solutions are mainly proactive, requiring complex backups that most users don’t adopt in practice. The KelpMe project extends the KELP (Key-Loss Protection) protocol, originally proposed by Meta Research to offer a fully reactive recovery mechanism without prior setup.
+Losing web3 private keys often results in irrecoverable asset loss. Existing solutions are mainly proactive, requiring complex backups that most users don't adopt in practice. KelpMe implements the [KELP (KEy-Loss Protection) protocol][paper] on the [Sui blockchain][sui], offering a fully **reactive** recovery mechanism that requires **no prior setup** from the user.
 
-KelpMe allows users to reclaim assets by initiating a three-phase smart contract (Commit → Reveal → Claim or Challenge). We enhance this by introducing optional Guardians and cover traffic techniques to generate decoy claims, making it harder for attackers to exploit the system. Additionally, fee-based penalties for false claims and malicious attacks are imposed, discouraging abuse. Our unique key rotation feature lets users regain control of an account without moving funds, ideal for frequently used addresses and possible due to account abstraction.
+KelpMe allows users to reclaim assets by initiating a three-phase smart contract flow: **Commit -> Reveal -> Claim** (or **Challenge**). We extend the original protocol with optional **Guardians** and economic deterrents (fee-based penalties for false claims). Sui's object-centric model enables key rotation semantics -- users regain control of a Kelp account without moving funds.
 
-Unlike traditional solutions, our approach is entirely reactive, eliminating the need for complex backups while providing robust defense mechanisms like cover traffic. This ensures that even in cases of key loss or transaction errors, users have a secure and streamlined method to recover their assets. This makes our solution a game-changer in asset recovery, significantly improving both security and usability for blockchain users.
+## Links
 
-This Sui Move module provides a reactive key-loss protection (KELP) mechanism for Sui account owners. Practically we implemented an innovative fraud-proof system for key recovery, utilizing Sui's account abstraction functionality to enforce secure time-locked transactions. It includes deterrents like claim fees and optional guardians to prevent malicious actors from gaming the system. To summarize, KelpMe offers a groundbreaking solution to one of the most critical issues in decentralized finance: secure and reliable asset recovery. 
+- [KELP scientific paper][paper] (ePrint 2021/289)
+- [KelpMe pitch deck][deck]
+- [KelpMe website][site] (testnet)
+- [KelpMe on X][twitter]
 
-KelpMe is a collaborative work, inspired by the Bybit/DMCC Dubai Hackathon, and the team consists of students from AUS (American University of Sharjah), industry leaders and the Mysten Labs cryptography team, along with co-authors of the original KELP algorithm.
+[paper]: https://eprint.iacr.org/2021/289
+[deck]: https://docs.google.com/presentation/d/1UFYTg3bJ7iT8znsAvZ8mJwiYRgNF7T-FluB7O75exeQ
+[site]: https://kelpme.io
+[twitter]: https://x.com/kelpmerecover
+[sui]: https://sui.io
 
-Links
------
+## Protocol Overview
 
-- [KELP scientific paper][1]
-- [KelpMe pitch deck][2]
-- [KelpMe website][3] (dev access needed, continuous updates, testnet)
-- [KelpMe on Twitter / X][4]
+KELP exploits an information asymmetry: the account owner is usually the first to know that their key has been lost. Anyone can initiate a claim, but the legitimate owner can cancel it by proving key possession (signing a Challenge transaction). This makes claims succeed **only** when the key is truly lost.
 
-[1]: https://eprint.iacr.org/2021/289
-[2]: https://docs.google.com/presentation/d/1UFYTg3bJ7iT8znsAvZ8mJwiYRgNF7T-FluB7O75exeQ
-[3]: https://kelpme.io
-[4]: https://x.com/kelpmerecover
+### Protocol Flow
 
+```
+Claimant                            Blockchain
+   |                                     |
+   |-- Commit(hash, fee_1) ------------->|  Store commitment
+   |                                     |
+   |   [wait for finality]               |
+   |                                     |
+   |-- Reveal(kelp, claimant, nonce, fee_2) ->|  Verify hash, record reveal
+   |                                     |
+   |   [challenge window t2]             |  Owner can Challenge here
+   |                                     |
+   |-- Claim() ------------------------->|  Transfer ownership
+   |                                     |
+```
 
-## Overview
+### Phases
 
-KELP operates on a commit-reveal scheme with a challenge period.  Guardians play a crucial role in confirming recovery attempts, offering additional security.
+1. **Commit** -- The claimant computes `hash = blake2b256(bcs(kelp_address) || bcs(claimant_address) || bcs(nonce))` and submits it with a commit fee (`fee_1 = 1 SUI`). The hash hides which account is being claimed.
 
-1. **Commit:** The account owner generates a commit hash using their original address, a recovery address, and a nonce.  They then submit this hash along with a commit fee to the `KelpRegistry`.
-2. **Reveal:** After a specified reveal window, guardians can reveal the recovery data (claimant address and nonce) associated with the commit hash. The earliest commit wins.
-3. **Challenge:** Within the challenge window, the original owner can challenge a recovery attempt, effectively cancelling it and reclaiming the accumulated fees.
-4. **Claim:** If no challenge is made within the challenge window, the claimant can claim the account, transferring ownership to the recovery address.
+2. **Reveal** -- Within the reveal window (`t1 = 2 minutes`), a guardian (or anyone, if no guardians are set) reveals the claimant address and nonce along with a reveal fee (`fee_2`). The contract verifies the hash matches a stored commit. The earliest commit becomes the _dominant reveal_.
 
-## Key Features
+3. **Claim** -- After the challenge window (`t2`, set per-account) elapses without a challenge, the claimant calls `claim()` to take ownership.
 
-* **Commit-Reveal Scheme:** Enhances security by requiring a two-step recovery process.
-* **Guardian Network:** Introduces trusted parties to verify recovery attempts.
-* **Challenge Period:** Allows the original owner to dispute unauthorized recovery attempts.
-* **Fee Mechanism:** Discourages spamming and incentivizes guardian participation.
-* **Dynamic Field Support:** Allows users to store arbitrary objects and coins in their Kelp object, which can then be claimed back by the original owner or transferred to the new owner after a succesful claim.
-* **Versioning:**  Includes versioning for future upgrades and compatibility.
+4. **Challenge** -- At any time during the challenge window, the original owner can call `challenge()` to cancel the pending claim and retain the accumulated fees as compensation.
 
-## Usage
+### Mapping to the Paper
 
-### Initialization
+| Paper Parameter         | Contract Constant/Field           | Description                             |
+| ----------------------- | --------------------------------- | --------------------------------------- |
+| `h` (hash function)     | `blake2b256`                      | Commitment hash function                |
+| `address_c`             | `kelp_address` (Kelp object ID)   | Account being claimed                   |
+| `address_r`             | `claimant`                        | Recovery address                        |
+| `t1` (reveal window)    | `REVEAL_WINDOW` = 120,000 ms      | Time to reveal after commit             |
+| `t2` (challenge window) | `kelp.challenge_window`           | Per-account, set at creation            |
+| `fee_1` (commit fee)    | `COMMIT_FEE` = 1 SUI              | Discourages random-testing attacks      |
+| `fee_2` (reveal fee)    | `kelp.reveal_fee_amount`          | Per-account minimum, enforced on reveal |
+| `com` (commitment)      | `commits` table in `KelpRegistry` | Stored by hash key                      |
 
-The module is initialized by calling the `init` function. This publishes the `KelpRegistry` shared object.
+### Extensions Beyond the Paper
 
-### Enabling KELP
+- **Guardian network**: Optional set of trusted addresses that must perform the reveal. When guardians are empty, anyone can reveal (original paper behavior).
+- **Stale commit cleanup**: Anyone can call `remove_stale_commit()` to garbage-collect expired commits and receive the commit fee as a reward.
+- **Asset custody**: The Kelp object can hold arbitrary coins and objects via `accept_payment()` / `accept_object()`, providing an on-chain vault that transfers with ownership.
+- **Event emissions**: All state transitions emit events (`KelpCreated`, `CommitSubmitted`, `RevealProcessed`, `ClaimCompleted`, `ChallengeMade`, `StaleCommitRemoved`) for wallet monitoring.
 
-Account owners can enable KELP by calling the `create_kelp` function, specifying the reveal fee, challenge window, and a set of guardian addresses.  This publishes a `Kelp` shared object linked to their account.
+## Repository Layout
 
-### Recovery Process
+```
+kelp/                   Sui Move smart contract
+  sources/kelp.move     Core module
+  tests/kelp_tests.move Comprehensive test suite (36 tests)
+  Move.toml             Package manifest
+dapp/                   Vite + React 19 SPA
+  src/hooks/            React hooks for each contract operation
+  src/components/       UI components (Dashboard, RecoveryFlow, etc.)
+  src/lib/              Shared helpers (tx utils, explorer URLs)
+  src/config.ts         Contract addresses and constants
+  src/dApp-kit.ts       Sui network and wallet configuration
+publish/                Deployment script
+  publish.sh            Deploy to localnet/devnet/testnet/mainnet
+```
 
-1. **Commit:** Call the `commit` function with the commit hash and the commit fee.
-2. **Reveal:** After the reveal window, a guardian calls the `reveal` function with the recovery data and reveal fee.
-3. **Challenge (Optional):** Within the challenge window, the original owner can call the `challenge` function to cancel the recovery attempt.
-4. **Claim:** If no challenge is made, the claimant calls the `claim` function to take ownership of the account.
+## Build, Test, and Deploy
 
-## Functions
+### Prerequisites
+
+- [Sui CLI](https://docs.sui.io/guides/developer/getting-started/sui-install) (latest stable)
+- [pnpm](https://pnpm.io/) (for the frontend)
+
+### Smart Contract
+
+```bash
+cd kelp
+
+# Build
+sui move build
+
+# Run tests
+sui move test
+
+# Run tests with verbose output
+sui move test --verbose
+```
+
+### Deployment
+
+```bash
+cd publish
+
+# Deploy to testnet (also: devnet, mainnet, or omit for localnet)
+./publish.sh testnet
+```
+
+Requires `sui`, `jq`, and `curl`. Outputs object IDs (`PACKAGE_ID`, `REGISTRY_ID`, `REGISTRY_TABLE`) to `publish/.env`.
+
+### Frontend
+
+```bash
+cd dapp
+
+pnpm install
+pnpm run dev        # Start dev server (Vite)
+pnpm run build      # Type-check + production build
+pnpm run preview    # Preview production build
+```
+
+Configure contract addresses in `dapp/.env` (tracked, `VITE_` prefix):
+
+- `VITE_PACKAGE_ID` -- Deployed KELP package object ID
+- `VITE_REGISTRY_ID` -- KelpRegistry shared object ID
+
+## Architecture
+
+### Smart Contract Objects
+
+- **`KelpRegistry`** (shared, singleton) -- Global registry mapping owner addresses to their Kelp IDs. Stores pending commits and accumulated commit fees.
+- **`Kelp`** (shared, per-account) -- Per-account recovery configuration: owner, guardians, fee parameters, challenge window, and the current dominant reveal.
 
 ### Core Functions
 
-* `init`: Initializes the KELP module.
-* `create_kelp`: Creates and publishes a Kelp object for an account.
-* `commit`: Submits a commit hash to initiate recovery.
-* `reveal`: Reveals the recovery data.
-* `claim`: Claims the account after a successful reveal.
-* `challenge`: Challenges a recovery attempt within the challenge window.
-* `collect_fees`: Allows the owner to collect accumulated fees.
+| Function              | Who Calls            | Purpose                                    |
+| --------------------- | -------------------- | ------------------------------------------ |
+| `create_kelp`         | Account owner        | Creates a Kelp recovery config             |
+| `commit`              | Claimant (anyone)    | Submits a hash commitment with fee         |
+| `reveal`              | Guardian (or anyone) | Reveals recovery data, verifies hash       |
+| `claim`               | Claimant             | Transfers ownership after challenge window |
+| `challenge`           | Current owner        | Cancels pending claim, keeps fees          |
+| `collect_fees`        | Current owner        | Withdraws accumulated fees                 |
+| `remove_stale_commit` | Anyone               | Cleans up expired commits for a fee reward |
 
-### Helper Functions
+### Management Functions
 
-* `bump_kelp_version`: Updates the Kelp object version.
-* `bump_kelp_registry_version`: Updates the KelpRegistry version.
-* `is_kelp_version_valid`: Checks if the Kelp object version is valid.
-* `is_kelp_registry_version_valid`: Checks if the KelpRegistry version is valid.
-* `add_guardian`: Adds a guardian to the Kelp object.
-* `remove_guardian`: Removes a guardian from the Kelp object.
-* `tongle_enable`: Enables or disables the KELP recovery feature.
-* `accept_payment`: Accepts payments.
-* `withdraw`: Withdraws coins.
-* `withdraw_and_accept`: Withdraws coins and accepts payments.
-* `withdraw_all`: Withdraws all coins.
-* `accept_object`: Accepts object.
-* `get_object`: Gets an object stored within the KELP resource.
+| Function                                       | Who Calls               | Purpose                                  |
+| ---------------------------------------------- | ----------------------- | ---------------------------------------- |
+| `add_guardian` / `remove_guardian`             | Owner                   | Manage the guardian set                  |
+| `toggle_enable`                                | Owner                   | Enable/disable KELP recovery             |
+| `accept_payment` / `withdraw` / `withdraw_all` | Owner / anyone (accept) | Manage coin balances                     |
+| `accept_object` / `get_object`                 | Owner / anyone (accept) | Manage stored objects                    |
+| `borrow_val` / `return_val`                    | Owner                   | Borrow objects with hot-potato guarantee |
+
+### Frontend Hooks
+
+Each contract operation has a corresponding React hook in `dapp/src/hooks/`:
+
+- `useCreateKelp` -- Creates a Kelp for the connected wallet
+- `useCommit` -- Computes the blake2b hash client-side and submits a commit
+- `useReveal` -- Reveals recovery data (guardian action)
+- `useClaim` -- Claims after challenge window
+- `useChallenge` -- Owner challenges a claim
+- `useTransferSUI` -- Accepts pending coins into KELP, withdraws, and transfers to a recipient
+- `useClaimTokens` -- Accepts pending coins and withdraws the full balance to connected wallet
+- `useSignAndExecute` -- Shared hook wrapping `dAppKit.signAndExecuteTransaction`
 
 ## Security Considerations
 
-* **Guardian Selection:** Careful selection of guardians is crucial for security.
-* **Nonce Management:** Secure generation and storage of the nonce is essential to prevent replay attacks.
+### Trust Model
 
+KELP assumes that **long-range censorship is infeasible** on Sui. An adversary who can censor transactions for the entire challenge window (`t2`) could execute an attack. Setting `t2` to months or years makes this impractical.
 
-This README provides a high-level overview of the KELP module. Refer to the inline code comments for more detailed information.
+### Attack Defenses
+
+| Attack                        | Defense                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------- |
+| **Front-running**             | Commit-reveal scheme hides the target account until reveal                              |
+| **Random testing**            | Commit fee (`fee_1`) makes mass testing expensive                                       |
+| **Targeted pre-commitment**   | Reveal fee (`fee_2`) makes failed claims costly; dominant reveal favors earliest commit |
+| **Malicious claims**          | Challenge window lets the owner cancel and collect attacker's fees                      |
+| **Stale commit accumulation** | `remove_stale_commit()` allows garbage collection with economic incentive               |
+
+### Important Notes
+
+- **Guardian selection**: Guardians have significant power -- they control who can reveal. Choose guardians carefully. An empty guardian set allows anyone to reveal (original paper behavior).
+- **Nonce security**: The nonce must be kept secret until reveal. If leaked, an attacker can compute the hash and front-run with their own commit.
+- **Challenge window sizing**: Should be long enough for the owner to detect a claim and respond. The paper recommends months to years for high-value accounts.
+- **Reveal window (`t1 = 2 min`)**: Appropriate for Sui's fast finality (~2-3 second). Prevents stale commits from accumulating but is short enough that censorship attacks on reveal inclusion are unlikely.
+
+## Credits
+
+KelpMe is a collaborative work inspired by the Bybit/DMCC Dubai Hackathon. The team includes students from AUS (American University of Sharjah), industry leaders, the Mysten Labs cryptography team, and co-authors of the original KELP algorithm.
