@@ -199,28 +199,6 @@ KELP assumes that **long-range censorship is infeasible** on Sui. An adversary w
 - **Challenge window sizing**: Should be long enough for the owner to detect a claim and respond. The paper recommends months to years for high-value accounts.
 - **Reveal window (`t1 = 2 min`)**: Appropriate for Sui's fast finality (~2-3 second). Prevents stale commits from accumulating but is short enough that censorship attacks on reveal inclusion are unlikely.
 
-## Assumptions and Limitations
-
-1. **Opt-in only**: KELP must be explicitly enabled per account via `create_kelp()`. This reduces the anonymity set of commits compared to a protocol-level default (as discussed in Section 2.3 of the paper).
-2. **No cover traffic**: The paper recommends periodic fake commits to mask real recovery attempts. This is not implemented at the contract level but can be done by wallet software.
-3. **No sequence-number binding**: The paper's Appendix A (Diem implementation) uses sequence numbers for implicit challenges. Sui doesn't have per-account sequence numbers, so an explicit `challenge()` call is required.
-4. **Single commit fee**: The commit fee is a protocol-level constant (1 SUI) rather than per-account configurable. The paper suggests `fee_1` could vary.
-5. **Guardian extension**: Guardians are not part of the original paper. They change the trust model: with guardians, the reveal step requires a designated party, not just the claimant.
-
-## Post-Quantum (PQ) Readiness
-
-The current design is largely PQ-resilient at the protocol level:
-
-- **Hash function (BLAKE2b-256)**: Provides ~128-bit quantum security via Grover's bound. Sufficient for commitment hiding and binding properties.
-- **Commit-reveal scheme**: Security depends on hash preimage resistance, not digital signatures. The scheme remains secure against quantum adversaries.
-- **Challenge mechanism**: Relies on Sui's native transaction signing. When Sui adopts PQ signature schemes, KELP benefits automatically.
-
-### Future PQ Migration Path
-
-1. **Version field**: Both `Kelp` and `KelpRegistry` include a `version` field, enabling protocol upgrades (including hash algorithm changes) without redeployment.
-2. **Hash algorithm abstraction**: To support larger hash outputs (e.g., SHA-3-384 for full 256-bit quantum security), the `COMMIT_HASH_LENGTH` constant and hash function can be updated in a future version.
-3. **No cryptographic key material stored**: KELP does not store keys or signatures on-chain. PQ migration is purely a function of the underlying blockchain's signature scheme.
-
 ## Credits
 
 KelpMe is a collaborative work inspired by the Bybit/DMCC Dubai Hackathon. The team includes students from AUS (American University of Sharjah), industry leaders, the Mysten Labs cryptography team, and co-authors of the original KELP algorithm.
