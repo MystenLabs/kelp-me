@@ -172,6 +172,8 @@ Each contract operation has a corresponding React hook in `dapp/src/hooks/`:
 - `useReveal` -- Reveals recovery data (guardian action)
 - `useClaim` -- Claims after challenge window
 - `useChallenge` -- Owner challenges a claim
+- `useTransferSUI` -- Accepts pending coins into KELP, withdraws, and transfers to a recipient
+- `useClaimTokens` -- Accepts pending coins and withdraws the full balance to connected wallet
 - `useSignAndExecute` -- Shared hook wrapping `dAppKit.signAndExecuteTransaction`
 
 ## Security Considerations

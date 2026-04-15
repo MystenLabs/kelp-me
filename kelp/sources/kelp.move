@@ -502,7 +502,8 @@ public fun withdraw_all<T>(kelp: &mut Kelp, ctx: &mut TxContext): Coin<T> {
     assert!(kelp.owner == ctx.sender(), ENotTheKelpOwner);
     let account_balance_type = AccountBalance<T> {};
     assert!(df::exists_(&kelp.id, account_balance_type), EAccountBalanceDoesNotExist);
-    df::remove(&mut kelp.id, account_balance_type)
+    let balance: Balance<T> = df::remove(&mut kelp.id, account_balance_type);
+    coin::from_balance(balance, ctx)
 }
 
 /// Accepts and stores an arbitrary object in the `Kelp` object.

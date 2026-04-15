@@ -16,7 +16,7 @@ import { ClaimTokensForm } from "./components/ClaimTokensForm";
 import { CreateKelp } from "./components/CreateKelp";
 import { Dashboard } from "./components/Dashboard";
 import { RecoveryFlow } from "./components/RecoveryFlow";
-import { StakingPlaceholder } from "./components/StakingPlaceholder";
+import { Staking } from "./components/Staking";
 import { TransferForm } from "./components/TransferForm";
 
 type Tab =
@@ -132,7 +132,7 @@ function App() {
         {activeTab === "claim" && account && (
           <ClaimTokensForm initialKelpId={selectedKelpId} />
         )}
-        {activeTab === "staking" && account && <StakingPlaceholder />}
+        {activeTab === "staking" && account && <Staking />}
       </main>
     </div>
   );
