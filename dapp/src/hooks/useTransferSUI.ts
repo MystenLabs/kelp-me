@@ -11,7 +11,7 @@ export function useTransferSUI() {
       kelpId: string,
       recipient: string,
       amountMist: number,
-      pendingCoinIds: string[],
+      pendingCoinRefs: { objectId: string; version: string; digest: string }[],
     ) => {
       const tx = new Transaction();
 
@@ -22,10 +22,10 @@ export function useTransferSUI() {
       });
 
       // Accept all pending coins into KELP's internal balance
-      for (const coinId of pendingCoinIds) {
+      for (const ref of pendingCoinRefs) {
         tx.moveCall({
           target: `${PACKAGE_ID}::kelp::accept_payment`,
-          arguments: [tx.object(kelpId), tx.object(coinId)],
+          arguments: [tx.object(kelpId), tx.receivingRef(ref)],
           typeArguments: ["0x2::sui::SUI"],
         });
       }
@@ -44,8 +44,12 @@ export function useTransferSUI() {
       const [transferCoin] = tx.splitCoins(feesCoin, [tx.pure.u64(amountMist)]);
       tx.transferObjects([transferCoin], recipient);
 
-      // Return remainder to KELP
-      tx.transferObjects([feesCoin], kelpId);
+      // Deposit remainder back into KELP's internal balance
+      tx.moveCall({
+        target: `${PACKAGE_ID}::kelp::deposit`,
+        arguments: [tx.object(kelpId), feesCoin],
+        typeArguments: ["0x2::sui::SUI"],
+      });
 
       return signAndExecute(tx);
     },

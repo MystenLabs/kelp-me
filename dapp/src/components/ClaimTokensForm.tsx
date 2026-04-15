@@ -14,6 +14,8 @@ import {
 
 interface PendingCoin {
   objectId: string;
+  version: string;
+  digest: string;
   balance: number;
 }
 
@@ -39,8 +41,15 @@ export function ClaimTokensForm({ initialKelpId }: { initialKelpId?: string }) {
         coinType: "0x2::sui::SUI",
       });
       return result.objects.map(
-        (coin: { objectId: string; balance: string }): PendingCoin => ({
+        (coin: {
+          objectId: string;
+          version: string;
+          digest: string;
+          balance: string;
+        }): PendingCoin => ({
           objectId: coin.objectId,
+          version: coin.version,
+          digest: coin.digest,
           balance: Number(coin.balance),
         }),
       );
@@ -57,8 +66,13 @@ export function ClaimTokensForm({ initialKelpId }: { initialKelpId?: string }) {
     e.preventDefault();
     if (!account) return;
     try {
-      const coinIds = pendingCoins?.map((c: PendingCoin) => c.objectId) ?? [];
-      const result = await claimTokens(kelpId, coinIds);
+      const coinRefs =
+        pendingCoins?.map((c: PendingCoin) => ({
+          objectId: c.objectId,
+          version: c.version,
+          digest: c.digest,
+        })) ?? [];
+      const result = await claimTokens(kelpId, coinRefs);
       const digest = getDigest(result);
       toastTxSuccess("Tokens claimed successfully!", digest);
       refetchCoins();

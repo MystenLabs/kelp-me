@@ -35,15 +35,15 @@ export function useStakeSUI() {
       kelpId: string,
       validatorAddress: string,
       amountMist: bigint,
-      pendingCoinIds: string[],
+      pendingCoinRefs: { objectId: string; version: string; digest: string }[],
     ) => {
       const tx = new Transaction();
 
       // Accept any pending coins into KELP's internal balance first
-      for (const coinId of pendingCoinIds) {
+      for (const ref of pendingCoinRefs) {
         tx.moveCall({
           target: `${PACKAGE_ID}::kelp::accept_payment`,
-          arguments: [tx.object(kelpId), tx.object(coinId)],
+          arguments: [tx.object(kelpId), tx.receivingRef(ref)],
           typeArguments: ["0x2::sui::SUI"],
         });
       }

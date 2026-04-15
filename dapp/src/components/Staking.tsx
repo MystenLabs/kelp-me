@@ -100,8 +100,15 @@ export function Staking() {
         coinType: "0x2::sui::SUI",
       });
       return result.objects.map(
-        (coin: { objectId: string; balance: string }) => ({
+        (coin: {
+          objectId: string;
+          version: string;
+          digest: string;
+          balance: string;
+        }) => ({
           objectId: coin.objectId,
+          version: coin.version,
+          digest: coin.digest,
           balance: BigInt(coin.balance),
         }),
       );
@@ -167,8 +174,13 @@ export function Staking() {
     staleTime: 10_000,
   });
 
-  const pendingCoinIds = useMemo(
-    () => pendingCoins?.map((c) => c.objectId) ?? [],
+  const pendingCoinRefs = useMemo(
+    () =>
+      pendingCoins?.map((c) => ({
+        objectId: c.objectId,
+        version: c.version,
+        digest: c.digest,
+      })) ?? [],
     [pendingCoins],
   );
   const pendingTotal = useMemo(
@@ -258,7 +270,7 @@ export function Staking() {
           kelpId,
           selectedValidator,
           amountMist,
-          pendingCoinIds,
+          pendingCoinRefs,
         );
       } else {
         result = await stakeSUI(selectedValidator, amountMist);
