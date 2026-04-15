@@ -466,6 +466,13 @@ public fun toggle_enable(kelp: &mut Kelp, ctx: &mut TxContext) {
 /// Accepts a payment and adds it to the `Kelp` object's balance.
 public fun accept_payment<T>(kelp: &mut Kelp, sent: Receiving<Coin<T>>) {
     let coin = transfer::public_receive(&mut kelp.id, sent);
+    deposit(kelp, coin);
+}
+
+/// Deposits a coin directly into the `Kelp` object's balance.
+/// Unlike `accept_payment`, this takes a `Coin<T>` directly, enabling
+/// single-PTB flows such as unstake → deposit.
+public fun deposit<T>(kelp: &mut Kelp, coin: Coin<T>) {
     let account_balance_type = AccountBalance<T> {};
 
     if (df::exists_(&kelp.id, account_balance_type)) {
@@ -497,13 +504,17 @@ public fun withdraw<T>(kelp: &mut Kelp, amount: u64, ctx: &mut TxContext): Coin<
 // }
 
 /// Withdraws all coins of a specific type from the `Kelp` object.
+/// Returns a zero-value coin if no balance exists for the given type.
 public fun withdraw_all<T>(kelp: &mut Kelp, ctx: &mut TxContext): Coin<T> {
     assert!(is_kelp_version_valid(kelp), EVersionMismatch);
     assert!(kelp.owner == ctx.sender(), ENotTheKelpOwner);
     let account_balance_type = AccountBalance<T> {};
-    assert!(df::exists_(&kelp.id, account_balance_type), EAccountBalanceDoesNotExist);
-    let balance: Balance<T> = df::remove(&mut kelp.id, account_balance_type);
-    coin::from_balance(balance, ctx)
+    if (df::exists_(&kelp.id, account_balance_type)) {
+        let balance: Balance<T> = df::remove(&mut kelp.id, account_balance_type);
+        coin::from_balance(balance, ctx)
+    } else {
+        coin::zero<T>(ctx)
+    }
 }
 
 /// Accepts and stores an arbitrary object in the `Kelp` object.

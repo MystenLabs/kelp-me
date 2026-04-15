@@ -58,7 +58,7 @@ export function ClaimTokensForm({ initialKelpId }: { initialKelpId?: string }) {
     if (!account) return;
     try {
       const coinIds = pendingCoins?.map((c: PendingCoin) => c.objectId) ?? [];
-      const result = await claimTokens(kelpId, account.address, coinIds);
+      const result = await claimTokens(kelpId, coinIds);
       const digest = getDigest(result);
       toastTxSuccess("Tokens claimed successfully!", digest);
       refetchCoins();

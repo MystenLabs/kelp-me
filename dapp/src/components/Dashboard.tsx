@@ -1,4 +1,8 @@
-import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
+import {
+  useCurrentAccount,
+  useCurrentClient,
+  useCurrentNetwork,
+} from "@mysten/dapp-kit-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Copy,
@@ -20,6 +24,12 @@ import {
   CardTitle,
 } from "./ui/card";
 
+const RPC_URLS: Record<string, string> = {
+  mainnet: "https://fullnode.mainnet.sui.io:443",
+  testnet: "https://fullnode.testnet.sui.io:443",
+  devnet: "https://fullnode.devnet.sui.io:443",
+};
+
 interface KelpData {
   id: string;
   owner: string;
@@ -29,6 +39,7 @@ interface KelpData {
   guardianCount: number;
   hasDominantReveal: boolean;
   feesBalance: string;
+  createdAt?: number;
 }
 
 function parseKelpContent(objectId: string, content: any): KelpData | null {
@@ -58,6 +69,8 @@ export function Dashboard({
 }) {
   const account = useCurrentAccount();
   const client = useCurrentClient();
+  const network = useCurrentNetwork();
+  const rpcUrl = RPC_URLS[network] ?? RPC_URLS.testnet;
   const [lookupId, setLookupId] = useState("");
   const [kelpIds, setKelpIds] = useState<string[]>(() => {
     try {
@@ -86,17 +99,36 @@ export function Dashboard({
     refetch: refetchKelps,
     isRefetching: isRefetchingKelps,
   } = useQuery({
-    queryKey: ["kelps", kelpIds],
+    queryKey: ["kelps", kelpIds, network],
     queryFn: async () => {
       if (kelpIds.length === 0) return [];
       const settled = await Promise.allSettled(
         kelpIds.map(async (id) => {
-          const resp = await client.getObject({
-            objectId: id,
-            include: { json: true },
-          });
+          const [resp, txResp] = await Promise.all([
+            client.getObject({ objectId: id, include: { json: true } }),
+            fetch(rpcUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: "suix_queryTransactionBlocks",
+                params: [
+                  { filter: { ChangedObject: id }, options: {} },
+                  null,
+                  1,
+                  false,
+                ],
+              }),
+            }).then((r) => r.json()),
+          ]);
           const json = resp.object?.json;
-          return json ? parseKelpContent(id, json) : null;
+          const kelp = json ? parseKelpContent(id, json) : null;
+          if (kelp) {
+            const timestampMs = txResp.result?.data?.[0]?.timestampMs;
+            if (timestampMs) kelp.createdAt = Number(timestampMs);
+          }
+          return kelp;
         }),
       );
       return settled
@@ -342,10 +374,10 @@ function KelpCard({
             {kelp.enabled ? "Active" : "Disabled"}
           </span>
           <code
-            className="text-xs cursor-pointer hover:text-sui transition-colors"
+            className="text-xs cursor-pointer hover:text-sui transition-colors break-all"
             onClick={onSelect}
           >
-            {truncate(kelp.id)}
+            {kelp.id}
           </code>
           {isOwner && (
             <span className="text-[10px] bg-sui/20 text-sui px-1.5 py-0.5 rounded">
@@ -406,6 +438,14 @@ function KelpCard({
             {(Number(kelp.feesBalance) / 1e9).toFixed(4)} SUI
           </span>
         </div>
+        {kelp.createdAt && (
+          <div>
+            Created:{" "}
+            <span className="text-foreground">
+              {new Date(kelp.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}

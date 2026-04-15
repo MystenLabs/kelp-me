@@ -1,4 +1,8 @@
-import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
+import {
+  useCurrentAccount,
+  useCurrentClient,
+  useCurrentNetwork,
+} from "@mysten/dapp-kit-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -22,6 +26,12 @@ import {
   CardTitle,
 } from "./ui/card";
 
+const RPC_URLS: Record<string, string> = {
+  mainnet: "https://fullnode.mainnet.sui.io:443",
+  testnet: "https://fullnode.testnet.sui.io:443",
+  devnet: "https://fullnode.devnet.sui.io:443",
+};
+
 const MIST_PER_SUI = 1_000_000_000n;
 const MIN_STAKE_SUI = 1;
 
@@ -33,13 +43,20 @@ function formatSui(mist: bigint): string {
 }
 
 type SortField = "name" | "apy" | "commission" | "stake";
+type StakeSource = "wallet" | "kelp";
 
 export function Staking() {
   const account = useCurrentAccount();
   const client = useCurrentClient();
+  const network = useCurrentNetwork();
+  const rpcUrl = RPC_URLS[network] ?? RPC_URLS.testnet;
 
-  const { stakeSUI, loading: stakeLoading } = useStakeSUI();
-  const { unstakeSUI, loading: unstakeLoading } = useUnstakeSUI();
+  const { stakeSUI, stakeFromKelp, loading: stakeLoading } = useStakeSUI();
+  const {
+    unstakeSUI,
+    unstakeToKelp,
+    loading: unstakeLoading,
+  } = useUnstakeSUI();
   const {
     data: validators,
     isLoading: validatorsLoading,
@@ -67,6 +84,102 @@ export function Staking() {
   const [sortField, setSortField] = useState<SortField>("stake");
   const [sortAsc, setSortAsc] = useState(false);
   const [unstakingId, setUnstakingId] = useState<string | null>(null);
+
+  // KELP-specific state
+  const [stakeSource, setStakeSource] = useState<StakeSource>("kelp");
+  const [kelpId, setKelpId] = useState("");
+
+  const validKelpId = kelpId.startsWith("0x") && kelpId.length >= 66;
+
+  // Fetch pending coins at the KELP object
+  const { data: pendingCoins, refetch: refetchPendingCoins } = useQuery({
+    queryKey: ["kelp-staking-pending-coins", kelpId],
+    queryFn: async () => {
+      const result = await client.listCoins({
+        owner: kelpId,
+        coinType: "0x2::sui::SUI",
+      });
+      return result.objects.map(
+        (coin: { objectId: string; balance: string }) => ({
+          objectId: coin.objectId,
+          balance: BigInt(coin.balance),
+        }),
+      );
+    },
+    enabled: stakeSource === "kelp" && validKelpId,
+  });
+
+  // Fetch internal KELP balance from the AccountBalance<SUI> dynamic field.
+  // getBalance/listCoins only see pending coins (not yet accepted).
+  // After accept_payment, the balance lives inside a dynamic field.
+  const { data: kelpInternalBalance, refetch: refetchKelpBalance } = useQuery({
+    queryKey: ["kelp-internal-balance", kelpId, network],
+    queryFn: async (): Promise<bigint> => {
+      // Step 1: List all dynamic fields on the KELP
+      const listRes = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "suix_getDynamicFields",
+          params: [kelpId, null, 50],
+        }),
+      });
+      const listJson = await listRes.json();
+      const fields: { name: { type: string }; objectId: string }[] =
+        listJson.result?.data ?? [];
+
+      // Step 2: Find the AccountBalance<SUI> field
+      const suiField = fields.find(
+        (f) =>
+          f.name.type.includes("AccountBalance") &&
+          f.name.type.includes("sui::SUI"),
+      );
+      if (!suiField) return 0n;
+
+      // Step 3: Read the dynamic field object to get the Balance value
+      const objRes = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "sui_getObject",
+          params: [suiField.objectId, { showContent: true }],
+        }),
+      });
+      const objJson = await objRes.json();
+      const content = objJson.result?.data?.content;
+      if (!content?.fields) return 0n;
+
+      // The DF object is Field<AccountBalance<SUI>, Balance<SUI>>
+      // content.fields.value is the Balance<SUI>, which may be:
+      //   - a string like "3000000000"
+      //   - or an object like { fields: { value: "3000000000" } }
+      const dfValue = content.fields.value;
+      if (typeof dfValue === "string") return BigInt(dfValue);
+      if (typeof dfValue === "object" && dfValue?.fields?.value)
+        return BigInt(dfValue.fields.value);
+      return 0n;
+    },
+    enabled: stakeSource === "kelp" && validKelpId,
+    staleTime: 10_000,
+  });
+
+  const pendingCoinIds = useMemo(
+    () => pendingCoins?.map((c) => c.objectId) ?? [],
+    [pendingCoins],
+  );
+  const pendingTotal = useMemo(
+    () => pendingCoins?.reduce((sum, c) => sum + c.balance, 0n) ?? 0n,
+    [pendingCoins],
+  );
+
+  const activeBalance =
+    stakeSource === "kelp"
+      ? (kelpInternalBalance ?? 0n) + pendingTotal
+      : (balance ?? 0n);
 
   const validatorMap = useMemo(() => {
     const map = new Map<string, ValidatorInfo>();
@@ -138,13 +251,32 @@ export function Staking() {
       const amountMist = BigInt(
         Math.floor(parseFloat(amount) * Number(MIST_PER_SUI)),
       );
-      const result = await stakeSUI(selectedValidator, amountMist);
+
+      let result;
+      if (stakeSource === "kelp") {
+        result = await stakeFromKelp(
+          kelpId,
+          selectedValidator,
+          amountMist,
+          pendingCoinIds,
+        );
+      } else {
+        result = await stakeSUI(selectedValidator, amountMist);
+      }
+
       const digest = getDigest(result);
-      toastTxSuccess("Stake submitted!", digest);
+      toastTxSuccess(
+        stakeSource === "kelp" ? "Staked from KELP!" : "Stake submitted!",
+        digest,
+      );
       setAmount("");
       setSelectedValidator("");
       refetchStakes();
       refetchBalance();
+      if (stakeSource === "kelp") {
+        refetchKelpBalance();
+        refetchPendingCoins();
+      }
     } catch (err) {
       toastTxError(err);
     }
@@ -153,11 +285,23 @@ export function Staking() {
   const handleUnstake = async (stakedSuiId: string) => {
     setUnstakingId(stakedSuiId);
     try {
-      const result = await unstakeSUI(stakedSuiId);
+      let result;
+      if (stakeSource === "kelp" && validKelpId) {
+        result = await unstakeToKelp(stakedSuiId, kelpId);
+      } else {
+        result = await unstakeSUI(stakedSuiId);
+      }
       const digest = getDigest(result);
-      toastTxSuccess("Unstake submitted!", digest);
+      toastTxSuccess(
+        stakeSource === "kelp" ? "Unstaked to KELP!" : "Unstake submitted!",
+        digest,
+      );
       refetchStakes();
       refetchBalance();
+      if (stakeSource === "kelp") {
+        refetchKelpBalance();
+        refetchPendingCoins();
+      }
     } catch (err) {
       toastTxError(err);
     } finally {
@@ -170,8 +314,12 @@ export function Staking() {
     selectedValidator &&
     amount &&
     parsedAmount >= MIN_STAKE_SUI &&
-    balance !== undefined &&
-    BigInt(Math.floor(parsedAmount * Number(MIST_PER_SUI))) <= balance;
+    (stakeSource === "wallet"
+      ? balance !== undefined &&
+        BigInt(Math.floor(parsedAmount * Number(MIST_PER_SUI))) <= balance
+      : validKelpId &&
+        activeBalance >=
+          BigInt(Math.floor(parsedAmount * Number(MIST_PER_SUI))));
 
   const totalStaked = stakes?.reduce((sum, s) => sum + s.principal, 0n) ?? 0n;
   const totalRewards =
@@ -198,7 +346,7 @@ export function Staking() {
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-secondary rounded-lg p-3">
-              <p className="text-xs text-muted-foreground">Available Balance</p>
+              <p className="text-xs text-muted-foreground">Wallet Balance</p>
               <p className="text-sm font-medium mt-1">
                 {balance !== undefined ? formatSui(balance) : "--"} SUI
               </p>
@@ -224,11 +372,74 @@ export function Staking() {
         <CardHeader>
           <CardTitle className="text-base">Stake SUI</CardTitle>
           <CardDescription>
-            Select a validator and enter the amount to stake.
+            Select a source, validator, and amount to stake.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleStake} className="space-y-4">
+            {/* Source toggle */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Stake from</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStakeSource("kelp")}
+                  className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors ${
+                    stakeSource === "kelp"
+                      ? "border-amber-500 bg-amber-900/20 text-amber-400"
+                      : "border-border text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  KELP Object
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStakeSource("wallet")}
+                  className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors ${
+                    stakeSource === "wallet"
+                      ? "border-sui bg-sui/10 text-sui"
+                      : "border-border text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  Wallet
+                </button>
+              </div>
+            </div>
+
+            {/* KELP Object ID (only when source is kelp) */}
+            {stakeSource === "kelp" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">KELP Object ID</label>
+                <input
+                  type="text"
+                  placeholder="0x..."
+                  value={kelpId}
+                  onChange={(e) => setKelpId(e.target.value)}
+                  className="input"
+                />
+                {validKelpId && (
+                  <div className="bg-secondary rounded-lg p-3 mt-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        KELP Balance
+                      </span>
+                      <span className="text-foreground font-medium">
+                        {formatSui(activeBalance)} SUI
+                      </span>
+                    </div>
+                    {pendingTotal > 0n && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Includes {pendingCoins?.length ?? 0} pending coin
+                        {(pendingCoins?.length ?? 0) !== 1 ? "s" : ""} (
+                        {formatSui(pendingTotal)} SUI) — will be accepted
+                        automatically.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Validator selector */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Validator</label>
@@ -365,12 +576,21 @@ export function Staking() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (balance !== undefined && balance > MIST_PER_SUI) {
-                      // Leave 0.1 SUI for gas
-                      const max = balance - MIST_PER_SUI / 10n;
-                      if (max > 0n) {
+                    if (stakeSource === "wallet") {
+                      if (balance !== undefined && balance > MIST_PER_SUI) {
+                        const max = balance - MIST_PER_SUI / 10n;
+                        if (max > 0n) {
+                          setAmount(
+                            (Number(max) / Number(MIST_PER_SUI)).toFixed(4),
+                          );
+                        }
+                      }
+                    } else {
+                      if (activeBalance > 0n) {
                         setAmount(
-                          (Number(max) / Number(MIST_PER_SUI)).toFixed(4),
+                          (
+                            Number(activeBalance) / Number(MIST_PER_SUI)
+                          ).toFixed(4),
                         );
                       }
                     }
@@ -400,7 +620,9 @@ export function Staking() {
               ) : (
                 <span className="flex items-center justify-center gap-2">
                   <Landmark className="w-4 h-4" />
-                  Stake SUI
+                  {stakeSource === "kelp"
+                    ? "Stake from KELP"
+                    : "Stake from Wallet"}
                 </span>
               )}
             </button>
@@ -418,6 +640,9 @@ export function Staking() {
                 {stakes?.length
                   ? `${stakes.length} active stake${stakes.length !== 1 ? "s" : ""}`
                   : "No active stakes"}
+                {stakeSource === "kelp" && validKelpId && (
+                  <span className="ml-1">— unstaking returns to KELP</span>
+                )}
               </CardDescription>
             </div>
             <button
@@ -426,6 +651,10 @@ export function Staking() {
                 refetchStakes();
                 refetchValidators();
                 refetchBalance();
+                if (stakeSource === "kelp" && validKelpId) {
+                  refetchKelpBalance();
+                  refetchPendingCoins();
+                }
               }}
               className={`icon-btn ${stakesLoading ? "animate-spin" : ""}`}
               title="Refresh"
@@ -497,14 +726,20 @@ export function Staking() {
                       onClick={() => handleUnstake(s.stakedSuiId)}
                       disabled={unstakeLoading}
                       className="btn-secondary text-xs flex items-center gap-1.5 shrink-0"
-                      title="Unstake"
+                      title={
+                        stakeSource === "kelp" && validKelpId
+                          ? "Unstake to KELP"
+                          : "Unstake to wallet"
+                      }
                     >
                       {isUnstaking ? (
                         <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <LogOut className="w-3.5 h-3.5" />
                       )}
-                      Unstake
+                      {stakeSource === "kelp" && validKelpId
+                        ? "To KELP"
+                        : "Unstake"}
                     </button>
                   </div>
                 );

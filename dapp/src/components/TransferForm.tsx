@@ -1,4 +1,8 @@
-import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
+import {
+  useCurrentAccount,
+  useCurrentClient,
+  useCurrentNetwork,
+} from "@mysten/dapp-kit-react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
@@ -12,6 +16,12 @@ import {
   CardTitle,
 } from "./ui/card";
 
+const RPC_URLS: Record<string, string> = {
+  mainnet: "https://fullnode.mainnet.sui.io:443",
+  testnet: "https://fullnode.testnet.sui.io:443",
+  devnet: "https://fullnode.devnet.sui.io:443",
+};
+
 interface PendingCoin {
   objectId: string;
   balance: number;
@@ -20,6 +30,8 @@ interface PendingCoin {
 export function TransferForm({ initialKelpId }: { initialKelpId?: string }) {
   const account = useCurrentAccount();
   const client = useCurrentClient();
+  const network = useCurrentNetwork();
+  const rpcUrl = RPC_URLS[network] ?? RPC_URLS.testnet;
   const { transferSUI, loading } = useTransferSUI();
 
   const [kelpId, setKelpId] = useState(initialKelpId ?? "");
@@ -27,6 +39,20 @@ export function TransferForm({ initialKelpId }: { initialKelpId?: string }) {
   const [amount, setAmount] = useState("");
 
   const validKelpId = kelpId.startsWith("0x") && kelpId.length >= 66;
+
+  // Fetch the KELP object to read its fees balance
+  const { data: feesBalance, refetch: refetchKelp } = useQuery({
+    queryKey: ["kelp-object-fees", kelpId],
+    queryFn: async () => {
+      const resp = await client.getObject({
+        objectId: kelpId,
+        include: { json: true },
+      });
+      const fields = resp.object?.json as Record<string, any> | undefined;
+      return Number(fields?.fees?.fields?.value ?? fields?.fees?.value ?? "0");
+    },
+    enabled: !!account && validKelpId,
+  });
 
   // Fetch pending SUI coins at the KELP object
   const {
@@ -50,10 +76,64 @@ export function TransferForm({ initialKelpId }: { initialKelpId?: string }) {
     enabled: !!account && validKelpId,
   });
 
+  // Fetch internal KELP balance from the AccountBalance<SUI> dynamic field
+  const { data: internalBalance, refetch: refetchInternalBalance } = useQuery({
+    queryKey: ["kelp-internal-balance", kelpId, network],
+    queryFn: async (): Promise<number> => {
+      const listRes = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "suix_getDynamicFields",
+          params: [kelpId, null, 50],
+        }),
+      });
+      const listJson = await listRes.json();
+      const fields: { name: { type: string }; objectId: string }[] =
+        listJson.result?.data ?? [];
+
+      const suiField = fields.find(
+        (f) =>
+          f.name.type.includes("AccountBalance") &&
+          f.name.type.includes("sui::SUI"),
+      );
+      if (!suiField) return 0;
+
+      const objRes = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "sui_getObject",
+          params: [suiField.objectId, { showContent: true }],
+        }),
+      });
+      const objJson = await objRes.json();
+      const content = objJson.result?.data?.content;
+      if (!content?.fields) return 0;
+
+      const dfValue = content.fields.value;
+      if (typeof dfValue === "string") return Number(dfValue);
+      if (typeof dfValue === "object" && dfValue?.fields?.value)
+        return Number(dfValue.fields.value);
+      return 0;
+    },
+    enabled: !!account && validKelpId,
+    staleTime: 10_000,
+  });
+
   const pendingTotal =
     pendingCoins?.reduce((sum: number, c: PendingCoin) => sum + c.balance, 0) ??
     0;
   const pendingTotalSui = (pendingTotal / 1_000_000_000).toFixed(4);
+  const feesSui = ((feesBalance ?? 0) / 1_000_000_000).toFixed(4);
+  const internalSui = ((internalBalance ?? 0) / 1_000_000_000).toFixed(4);
+  const totalAvailable =
+    pendingTotal + (feesBalance ?? 0) + (internalBalance ?? 0);
+  const totalAvailableSui = (totalAvailable / 1_000_000_000).toFixed(4);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +146,8 @@ export function TransferForm({ initialKelpId }: { initialKelpId?: string }) {
       setRecipient("");
       setAmount("");
       refetchCoins();
+      refetchKelp();
+      refetchInternalBalance();
     } catch (err) {
       toastTxError(err);
     }
@@ -113,17 +195,33 @@ export function TransferForm({ initialKelpId }: { initialKelpId?: string }) {
             </div>
           </div>
 
-          {pendingCoins !== undefined && (
-            <div className="bg-secondary rounded-lg p-3">
+          {(pendingCoins !== undefined || feesBalance !== undefined) && (
+            <div className="bg-secondary rounded-lg p-3 space-y-1">
               <p className="text-xs text-muted-foreground">
-                Pending coins at KELP:{" "}
+                Fees balance:{" "}
                 <span className="text-foreground font-medium">
-                  {pendingCoins.length} coin
-                  {pendingCoins.length !== 1 ? "s" : ""} ({pendingTotalSui} SUI)
+                  {feesSui} SUI
                 </span>
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                These will be absorbed into the KELP balance before withdrawal.
+              <p className="text-xs text-muted-foreground">
+                Internal balance:{" "}
+                <span className="text-foreground font-medium">
+                  {internalSui} SUI
+                </span>
+              </p>
+              {pendingCoins !== undefined && (
+                <p className="text-xs text-muted-foreground">
+                  Pending coins:{" "}
+                  <span className="text-foreground font-medium">
+                    {pendingCoins.length} coin
+                    {pendingCoins.length !== 1 ? "s" : ""} ({pendingTotalSui}{" "}
+                    SUI)
+                  </span>
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground font-medium pt-1 border-t border-border mt-1">
+                Total available:{" "}
+                <span className="text-foreground">{totalAvailableSui} SUI</span>
               </p>
             </div>
           )}
